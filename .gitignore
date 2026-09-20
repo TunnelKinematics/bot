@@ -1,0 +1,23 @@
+__pycache__/
+*.py[cod]
+*.egg-info/
+build/
+dist/
+.venv/
+venv/
+
+# ROS2 workspace
+ros_ws/build/
+ros_ws/install/
+ros_ws/log/
+
+# recordings / calibration dumps
+*.svo
+*.svo2
+*.bag
+*.mcap
+
+.vscode/
+.idea/
+.DS_Store
+.pytest_cache/

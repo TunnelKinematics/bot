@@ -1,0 +1,21 @@
+[project]
+name = "tv-bot"
+version = "0.1.0"
+requires-python = ">=3.10"
+dependencies = ["numpy"]
+
+[project.optional-dependencies]
+oak = ["depthai>=2.24,<3"]
+
+[dependency-groups]
+dev = ["pytest", "opencv-python"]
+
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+include = ["bot*"]
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
