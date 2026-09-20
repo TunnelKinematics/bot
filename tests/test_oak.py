@@ -11,14 +11,12 @@ def test_stereo(oak):
     a, b = oak.get_stereo(), oak.get_stereo()
     assert a.left.shape == a.right.shape == a.depth.shape
     assert a.left.dtype == np.uint8 and a.depth.dtype == np.float32
-    assert (a.left.shape[1], a.left.shape[0]) == (oak.calibration().intrinsics.width, oak.calibration().intrinsics.height)
+    assert (a.left.shape[1], a.left.shape[0]) == (
+        oak.calibration().intrinsics.width,
+        oak.calibration().intrinsics.height,
+    )
     assert np.nanmin(a.depth) > 0
     assert b.timestamp > a.timestamp
-
-
-def test_rgb(oak):
-    f = oak.get_rgb()
-    assert f.image.ndim == 3 and f.image.shape[2] == 3 and f.image.dtype == np.uint8
 
 
 def test_imu(oak):

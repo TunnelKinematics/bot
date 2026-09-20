@@ -21,3 +21,8 @@ ros_ws/log/
 .idea/
 .DS_Store
 .pytest_cache/
+
+# local data
+runs/
+recordings/
+out/

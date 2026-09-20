@@ -2,13 +2,23 @@
 name = "tv-bot"
 version = "0.1.0"
 requires-python = ">=3.10"
-dependencies = ["numpy"]
+dependencies = [
+    "numpy",
+    "scipy",
+    "opencv-python",
+]
+# GPU-only, installed from NVIDIA's wheels on the Jetson (see modal_app.py for the x86 URLs):
+#   cuvslam       https://github.com/nvidia-isaac/cuVSLAM/releases
+#   nvblox_torch  https://github.com/nvidia-isaac/nvblox/releases
 
 [project.optional-dependencies]
 oak = ["depthai>=2.24,<3"]
 
 [dependency-groups]
-dev = ["pytest", "opencv-python"]
+dev = [
+    "pytest",
+    "ruff",
+]
 
 [build-system]
 requires = ["setuptools"]
@@ -19,3 +29,14 @@ include = ["bot*"]
 
 [tool.pytest.ini_options]
 pythonpath = ["."]
+
+[tool.ruff]
+line-length = 79
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "UP", "B", "SIM", "N"]
+ignore = ["N806", "N803", "N802"]  # T_world_optical, K, ...: math naming
+
+[tool.ruff.lint.per-file-ignores]
+"scripts/*" = ["E402"]  # argparse before the rest

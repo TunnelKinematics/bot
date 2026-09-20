@@ -1,11 +1,9 @@
 from abc import ABC, abstractmethod
 
-from ..imu.base import ImuSource
-from ..imu.types import ImuSample
-from .types import Frame, StereoCalibration, StereoFrame
+from .types import ImuSample, StereoCalibration, StereoFrame
 
 
-class StereoCamera(ImuSource, ABC):
+class StereoCamera(ABC):
     has_imu: bool = False
 
     @abstractmethod
@@ -21,11 +19,8 @@ class StereoCamera(ImuSource, ABC):
     def get_stereo(self) -> StereoFrame:
         """Blocks for the next frame."""
 
-    @abstractmethod
-    def get_rgb(self) -> Frame:
-        """Blocks for the next frame."""
-
     def get_imu(self) -> list[ImuSample]:
+        """All samples since the last call, oldest first."""
         return []
 
     def __enter__(self):
@@ -34,3 +29,15 @@ class StereoCamera(ImuSource, ABC):
 
     def __exit__(self, *_):
         self.close()
+
+
+def create_camera(backend: str, **kwargs) -> StereoCamera:
+    if backend == "oak":
+        from .oak import OakCamera
+
+        return OakCamera(**kwargs)
+    if backend == "replay":
+        from .replay import ReplayCamera
+
+        return ReplayCamera(**kwargs)
+    raise ValueError(f"unknown camera backend: {backend}")
