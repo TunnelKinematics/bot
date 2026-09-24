@@ -1,5 +1,8 @@
+name: bot
+
 services:
   dev:
+    container_name: bot
     build:
       context: .
       args:
