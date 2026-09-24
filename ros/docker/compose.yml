@@ -8,7 +8,7 @@ services:
       args:
         USER_UID: ${HOST_UID:-1000}
         USER_GID: ${HOST_GID:-1000}
-    image: bot-ros:humble
+    image: bot-ros:jazzy
     working_dir: /ws
     volumes:
       - ../src:/ws/src
