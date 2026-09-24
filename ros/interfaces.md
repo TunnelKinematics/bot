@@ -13,7 +13,7 @@ real implementation) as long as it publishes and subscribes to what is listed he
 | `bot_locomotion` | `/cmd_vel` → joint commands (the gait controller)            |
 | `bot_bringup`    | Launch files and config. `sim:=true\|false` picks sim or real. |
 
-Robot-specific packages (for example `solo12_description`) live on branches.
+Robot-specific packages (for example Pupper v3's description and controller) live on branches.
 
 ## Data flow
 
