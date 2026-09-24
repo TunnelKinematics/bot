@@ -26,3 +26,8 @@ ros_ws/log/
 runs/
 recordings/
 out/
+
+# training (mjlab) outputs
+logs/
+wandb/
+MUJOCO_LOG.TXT

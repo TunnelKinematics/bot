@@ -15,7 +15,13 @@ from mjlab.envs import ManagerBasedRlEnv
 from mjlab.rl import MjlabOnPolicyRunner, RslRlVecEnvWrapper
 from mjlab.scripts._cli import maybe_print_top_level_help
 from mjlab.tasks.registry import list_tasks, load_env_cfg, load_rl_cfg, load_runner_cls
-from mjlab.tasks.tracking.mdp import MotionCommandCfg
+
+try:
+  from mjlab.tasks.tracking.mdp import MotionCommandCfg
+except ImportError:  # Tracking tasks are not vendored; nothing matches.
+
+  class MotionCommandCfg:  # type: ignore[no-redef]
+    pass
 from mjlab.utils.os import get_wandb_checkpoint_path
 from mjlab.utils.torch import configure_torch_backends
 from mjlab.utils.wrappers import VideoRecorder

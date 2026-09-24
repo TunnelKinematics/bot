@@ -1,7 +1,7 @@
 [project]
 name = "tv-bot"
 version = "0.1.0"
-requires-python = ">=3.10"
+requires-python = ">=3.10,<3.14"  # mujoco-warp has no 3.14 wheels
 dependencies = [
     "numpy",
     "scipy",
@@ -13,11 +13,43 @@ dependencies = [
 
 [project.optional-dependencies]
 oak = ["depthai>=2.24,<3"]
+# Pupper locomotion training (training/, vendored mjlab). Needs an NVIDIA GPU;
+# macOS can evaluate only. Install with: uv sync --extra training
+training = [
+    "prettytable",
+    "tqdm",
+    "tyro>=1.0.1",
+    "torch>=2.7.0",
+    "torchrunx>=0.3.4",
+    "warp-lang>=1.14.0",
+    "mujoco-warp>=3.10.0.2,~=3.10.0",
+    "mujoco~=3.10.0",
+    "trimesh>=4.8.3",
+    "scipy>=1.15",
+    "viser>=1.0.27",
+    "mjviser>=0.0.14",
+    "mediapy>=1.2.6",
+    # mediapy 1.2.6 breaks on numpy>=2.5 (google/mediapy#66).
+    "numpy<2.5",
+    "imageio-ffmpeg",
+    "tensordict",
+    "rsl-rl-lib==5.4.0",
+    "tensorboard>=2.20.0",
+    "onnxscript>=0.5.4",
+    "wandb>=0.22.3",
+]
+
+[project.scripts]
+train = "mjlab.scripts.train:main"
+play = "mjlab.scripts.play:main"
+list-envs = "mjlab.scripts.list_envs:main"
+export-pupper-policy = "mjlab.scripts.export_pupper_policy:main"
 
 [dependency-groups]
 dev = [
     "pytest",
     "ruff",
+    "onnxruntime>=1.19.0; python_version >= '3.11'",
 ]
 
 [build-system]
@@ -25,10 +57,30 @@ requires = ["setuptools"]
 build-backend = "setuptools.build_meta"
 
 [tool.setuptools.packages.find]
-include = ["bot*"]
+where = [".", "training/src"]
+include = ["bot*", "mjlab*"]
+
+[tool.setuptools.package-data]
+mjlab = ["py.typed", "**/*.xml", "**/*.stl"]
+
+[tool.uv]
+constraint-dependencies = ["GitPython>=3.1.49", "lxml>=6.1.0"]
+
+[[tool.uv.index]]
+url = "https://pypi.org/simple"
+
+[[tool.uv.index]]
+name = "nvidia"
+url = "https://pypi.nvidia.com/"
+explicit = true
+
+[tool.uv.sources]
+warp-lang = { index = "nvidia", marker = "sys_platform != 'darwin'" }
 
 [tool.pytest.ini_options]
 pythonpath = ["."]
+testpaths = ["tests"]  # training tests: uv run --extra training pytest training/tests
+markers = ["slow: marks tests as slow (deselect with '-m \"not slow\"')"]
 
 [tool.ruff]
 line-length = 79
