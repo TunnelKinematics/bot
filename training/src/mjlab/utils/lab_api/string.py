@@ -100,7 +100,9 @@ def is_lambda_expression(name: str) -> bool:
     """
     try:
         ast.parse(name)
-        return isinstance(ast.parse(name).body[0], ast.Expr) and isinstance(ast.parse(name).body[0].value, ast.Lambda)
+        return isinstance(ast.parse(name).body[0], ast.Expr) and isinstance(
+            ast.parse(name).body[0].value, ast.Lambda
+        )
     except SyntaxError:
         return False
 
@@ -124,7 +126,13 @@ def callable_to_string(value: Callable) -> str:
     if value.__name__ == "<lambda>":
         # we resolve the lambda expression by checking the source code and extracting the line with lambda expression
         # we also remove any comments from the line
-        lambda_line = inspect.getsourcelines(value)[0][0].strip().split("lambda")[1].strip().split(",")[0]
+        lambda_line = (
+            inspect.getsourcelines(value)[0][0]
+            .strip()
+            .split("lambda")[1]
+            .strip()
+            .split(",")[0]
+        )
         lambda_line = re.sub(r"#.*$", "", lambda_line).rstrip()
         return f"lambda {lambda_line}"
     else:
@@ -160,14 +168,16 @@ def string_to_callable(name: str) -> Callable:
         if callable(callable_object):
             return callable_object
         else:
-            raise AttributeError(f"The imported object is not callable: '{name}'")
+            raise AttributeError(
+                f"The imported object is not callable: '{name}'"
+            )
     except (ValueError, ModuleNotFoundError) as e:
         msg = (
             f"Could not resolve the input string '{name}' into callable object."
             " The format of input should be 'module:attribute_name'.\n"
             f"Received the error:\n {e}."
         )
-        raise ValueError(msg)
+        raise ValueError(msg) from e
 
 
 """
@@ -176,7 +186,9 @@ Regex operations.
 
 
 def resolve_matching_names(
-    keys: str | Sequence[str], list_of_strings: Sequence[str], preserve_order: bool = False
+    keys: str | Sequence[str],
+    list_of_strings: Sequence[str],
+    preserve_order: bool = False,
 ) -> tuple[list[int], list[str]]:
     """Match a list of query regular expressions against a list of strings and return the matched indices and names.
 
@@ -260,7 +272,7 @@ def resolve_matching_names(
     if not all(keys_match_found):
         # make this print nicely aligned for debugging
         msg = "\n"
-        for key, value in zip(keys, keys_match_found):
+        for key, value in zip(keys, keys_match_found, strict=False):
             msg += f"\t{key}: {value}\n"
         msg += f"Available strings: {list_of_strings}\n"
         # raise error
@@ -272,7 +284,9 @@ def resolve_matching_names(
 
 
 def resolve_matching_names_values(
-    data: dict[str, Any], list_of_strings: Sequence[str], preserve_order: bool = False
+    data: dict[str, Any],
+    list_of_strings: Sequence[str],
+    preserve_order: bool = False,
 ) -> tuple[list[int], list[str], list[Any]]:
     """Match a list of regular expressions in a dictionary against a list of strings and return
     the matched indices, names, and values.
@@ -304,7 +318,9 @@ def resolve_matching_names_values(
     """
     # check valid input
     if not isinstance(data, dict):
-        raise TypeError(f"Input argument `data` should be a dictionary. Received: {data}")
+        raise TypeError(
+            f"Input argument `data` should be a dictionary. Received: {data}"
+        )
     # find matching patterns
     index_list = []
     names_list = []
@@ -357,7 +373,7 @@ def resolve_matching_names_values(
     if not all(keys_match_found):
         # make this print nicely aligned for debugging
         msg = "\n"
-        for key, value in zip(data.keys(), keys_match_found):
+        for key, value in zip(data.keys(), keys_match_found, strict=False):
             msg += f"\t{key}: {value}\n"
         msg += f"Available strings: {list_of_strings}\n"
         # raise error

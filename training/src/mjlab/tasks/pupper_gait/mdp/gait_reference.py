@@ -18,8 +18,8 @@ from pathlib import Path
 import numpy as np
 
 from mjlab.asset_zoo.robots.pupper_v3.pupper_constants import (
-  JOINT_NAMES,
-  get_spec,
+    JOINT_NAMES,
+    get_spec,
 )
 
 # Captured fast gaits: the reach ("fast forward") and reach_back ("fast
@@ -49,79 +49,111 @@ _CAPTURED_JUMP_FILE = Path(__file__).with_name("captured_jump_gait.npz")
 
 
 def jump_capture_duration_s() -> float | None:
-  """Playback duration of the captured jump [s], or None without a capture."""
-  if not _CAPTURED_JUMP_FILE.exists():
-    return None
-  return float(np.load(_CAPTURED_JUMP_FILE)["duration_s"])
+    """Playback duration of the captured jump [s], or None without a capture."""
+    if not _CAPTURED_JUMP_FILE.exists():
+        return None
+    return float(np.load(_CAPTURED_JUMP_FILE)["duration_s"])
 
 
 def rotation_x(a):
-  return np.array(
-    [
-      [1, 0, 0, 0],
-      [0, np.cos(a), -np.sin(a), 0],
-      [0, np.sin(a), np.cos(a), 0],
-      [0, 0, 0, 1],
-    ]
-  )
+    return np.array(
+        [
+            [1, 0, 0, 0],
+            [0, np.cos(a), -np.sin(a), 0],
+            [0, np.sin(a), np.cos(a), 0],
+            [0, 0, 0, 1],
+        ]
+    )
 
 
 def rotation_y(a):
-  return np.array(
-    [
-      [np.cos(a), 0, np.sin(a), 0],
-      [0, 1, 0, 0],
-      [-np.sin(a), 0, np.cos(a), 0],
-      [0, 0, 0, 1],
-    ]
-  )
+    return np.array(
+        [
+            [np.cos(a), 0, np.sin(a), 0],
+            [0, 1, 0, 0],
+            [-np.sin(a), 0, np.cos(a), 0],
+            [0, 0, 0, 1],
+        ]
+    )
 
 
 def rotation_z(a):
-  return np.array(
-    [
-      [np.cos(a), -np.sin(a), 0, 0],
-      [np.sin(a), np.cos(a), 0, 0],
-      [0, 0, 1, 0],
-      [0, 0, 0, 1],
-    ]
-  )
+    return np.array(
+        [
+            [np.cos(a), -np.sin(a), 0, 0],
+            [np.sin(a), np.cos(a), 0, 0],
+            [0, 0, 1, 0],
+            [0, 0, 0, 1],
+        ]
+    )
 
 
 def translation(x, y, z):
-  return np.array([[1, 0, 0, x], [0, 1, 0, y], [0, 0, 1, z], [0, 0, 0, 1]])
+    return np.array([[1, 0, 0, x], [0, 1, 0, y], [0, 0, 1, z], [0, 0, 0, 1]])
 
 
 def _fr_leg_fk(theta):
-  t01 = translation(0.075, -0.0835, 0) @ rotation_x(1.5708) @ rotation_z(theta[0])
-  t12 = rotation_y(-1.5708) @ rotation_z(theta[1])
-  t23 = translation(0, -0.0494, 0.0685) @ rotation_y(1.5708) @ rotation_z(theta[2])
-  t3e = translation(0.06231, -0.06216, 0.018)
-  return (t01 @ t12 @ t23 @ t3e)[:3, 3]
+    t01 = (
+        translation(0.075, -0.0835, 0)
+        @ rotation_x(1.5708)
+        @ rotation_z(theta[0])
+    )
+    t12 = rotation_y(-1.5708) @ rotation_z(theta[1])
+    t23 = (
+        translation(0, -0.0494, 0.0685)
+        @ rotation_y(1.5708)
+        @ rotation_z(theta[2])
+    )
+    t3e = translation(0.06231, -0.06216, 0.018)
+    return (t01 @ t12 @ t23 @ t3e)[:3, 3]
 
 
 def _fl_leg_fk(theta):
-  t01 = translation(0.075, 0.0835, 0) @ rotation_x(1.5708) @ rotation_z(-theta[0])
-  t12 = rotation_y(-1.5708) @ rotation_z(theta[1])
-  t23 = translation(0, -0.0494, 0.0685) @ rotation_y(1.5708) @ rotation_z(-theta[2])
-  t3e = translation(0.06231, -0.06216, -0.018)
-  return (t01 @ t12 @ t23 @ t3e)[:3, 3]
+    t01 = (
+        translation(0.075, 0.0835, 0)
+        @ rotation_x(1.5708)
+        @ rotation_z(-theta[0])
+    )
+    t12 = rotation_y(-1.5708) @ rotation_z(theta[1])
+    t23 = (
+        translation(0, -0.0494, 0.0685)
+        @ rotation_y(1.5708)
+        @ rotation_z(-theta[2])
+    )
+    t3e = translation(0.06231, -0.06216, -0.018)
+    return (t01 @ t12 @ t23 @ t3e)[:3, 3]
 
 
 def _br_leg_fk(theta):
-  t01 = translation(-0.075, -0.0725, 0) @ rotation_x(1.5708) @ rotation_z(theta[0])
-  t12 = rotation_y(-1.5708) @ rotation_z(theta[1])
-  t23 = translation(0, -0.0494, 0.0685) @ rotation_y(1.5708) @ rotation_z(theta[2])
-  t3e = translation(0.06231, -0.06216, 0.018)
-  return (t01 @ t12 @ t23 @ t3e)[:3, 3]
+    t01 = (
+        translation(-0.075, -0.0725, 0)
+        @ rotation_x(1.5708)
+        @ rotation_z(theta[0])
+    )
+    t12 = rotation_y(-1.5708) @ rotation_z(theta[1])
+    t23 = (
+        translation(0, -0.0494, 0.0685)
+        @ rotation_y(1.5708)
+        @ rotation_z(theta[2])
+    )
+    t3e = translation(0.06231, -0.06216, 0.018)
+    return (t01 @ t12 @ t23 @ t3e)[:3, 3]
 
 
 def _lb_leg_fk(theta):
-  t01 = translation(-0.075, 0.0725, 0) @ rotation_x(1.5708) @ rotation_z(-theta[0])
-  t12 = rotation_y(-1.5708) @ rotation_z(theta[1])
-  t23 = translation(0, -0.0494, 0.0685) @ rotation_y(1.5708) @ rotation_z(-theta[2])
-  t3e = translation(0.06231, -0.06216, -0.018)
-  return (t01 @ t12 @ t23 @ t3e)[:3, 3]
+    t01 = (
+        translation(-0.075, 0.0725, 0)
+        @ rotation_x(1.5708)
+        @ rotation_z(-theta[0])
+    )
+    t12 = rotation_y(-1.5708) @ rotation_z(theta[1])
+    t23 = (
+        translation(0, -0.0494, 0.0685)
+        @ rotation_y(1.5708)
+        @ rotation_z(-theta[2])
+    )
+    t3e = translation(0.06231, -0.06216, -0.018)
+    return (t01 @ t12 @ t23 @ t3e)[:3, 3]
 
 
 _FK = (_fr_leg_fk, _fl_leg_fk, _br_leg_fk, _lb_leg_fk)
@@ -129,7 +161,7 @@ _FK = (_fr_leg_fk, _fl_leg_fk, _br_leg_fk, _lb_leg_fk)
 
 # Per-leg body-frame hip offsets, FR/FL/BR/LB order.
 _HIP_OFFSET = np.array(
-  [[0.06, -0.09, 0], [0.06, 0.09, 0], [-0.11, -0.09, 0], [-0.11, 0.09, 0]]
+    [[0.06, -0.09, 0], [0.06, 0.09, 0], [-0.11, -0.09, 0], [-0.11, 0.09, 0]]
 )
 
 # Per-leg touchdown phase in [0, 1) -- where in the cycle each leg lands (is at
@@ -152,13 +184,13 @@ _HIP_OFFSET = np.array(
 #            actuator demand 21%. Paired with a long swing (see _GAIT_SWING_KF) it
 #            is the only configuration here with a real suspension phase.
 _GAIT_TOUCHDOWN: dict[str, tuple[float, float, float, float] | None] = {
-  "trot": (0.0, 0.5, 0.5, 0.0),
+    "trot": (0.0, 0.5, 0.5, 0.0),
 }
 
 # Fore-aft half-stride [m] per gait. A scalar is symmetric; a (front, back)
 # pair would reach further forward than back.
 _GAIT_STRIDE: dict[str, float | tuple[float, float] | None] = {
-  "trot": 0.05,
+    "trot": 0.05,
 }
 
 # Swing keyframes per gait (default 1). One keyframe crams the whole leg return
@@ -166,7 +198,7 @@ _GAIT_STRIDE: dict[str, float | tuple[float, float] | None] = {
 # animal and what saturates the actuator. Nine spreads it to duty 0.29 and buys a
 # suspension phase over 23% of the cycle.
 _GAIT_SWING_KF: dict[str, int] = {
-  "trot": 1,
+    "trot": 1,
 }
 
 # Per-leg fore-aft stance bias [m] (FR, FL, BR, LB); empty = none.
@@ -184,7 +216,7 @@ _SWING_Z = -0.05
 # Crouching converts vertical budget into horizontal reach -- worth knowing
 # when you design a faster reference.
 _GAIT_STANCE_Z: dict[str, float | None] = {
-  "trot": -0.14,
+    "trot": -0.14,
 }
 
 # Foot lift during swing, measured *from the stance plane* rather than as an
@@ -193,7 +225,7 @@ _GAIT_STANCE_Z: dict[str, float | None] = {
 # at a 0.10 m stance the foot would rise 5 cm rather than the 9 the original pair
 # gave.
 _GAIT_SWING_LIFT: dict[str, float | None] = {
-  "trot": 0.09,
+    "trot": 0.09,
 }
 
 # Phase-clock multiplier per gait, relative to the base cadence; empty = 1x
@@ -235,164 +267,179 @@ _GAIT_FREQ_MULT: dict[str, float] = {}
 _GAIT_TOUCHDOWN["lift"] = None  # (FR, FL, BR, LB) touchdown phases in [0, 1)
 _GAIT_STRIDE["lift"] = None  # fore-aft half-stride [m]
 _GAIT_STANCE_Z["lift"] = None  # foot depth below the hip during stance [m]
-_GAIT_SWING_LIFT["lift"] = None  # foot rise above the stance plane in swing [m]
+_GAIT_SWING_LIFT["lift"] = (
+    None  # foot rise above the stance plane in swing [m]
+)
 
 
 def _base_cycle(
-  stride: float | tuple[float, float],
-  n_swing: int = 1,
-  stance_z: float | None = None,
-  swing_lift: float | None = None,
+    stride: float | tuple[float, float],
+    n_swing: int = 1,
+    stance_z: float | None = None,
+    swing_lift: float | None = None,
 ) -> np.ndarray:
-  """Foot cycle: stance slides front->back over 5 keyframes, then a lifted swing.
+    """Foot cycle: stance slides front->back over 5 keyframes, then a lifted swing.
 
-  ``n_swing`` keyframes carry the foot back to the front of stance. One gives the
-  original 6-keyframe cycle (duty factor 4/6); more lengthens the swing relative to
-  stance, lowering the duty factor toward the sub-0.5 range a galloping animal uses
-  and spreading the leg's return over more control steps.
-  """
-  front, back = stride if isinstance(stride, tuple) else (stride, stride)
-  z = _STANCE_Z if stance_z is None else stance_z
-  rise = (_SWING_Z - _STANCE_Z) if swing_lift is None else swing_lift
-  stance = [
-    [front, 0.0, z],  # touch down (front of stance)
-    [0.5 * front, 0.0, z],  # stand 1
-    [0.0, 0.0, z],  # stand 2
-    [-0.5 * back, 0.0, z],  # stand 3
-    [-back, 0.0, z],  # liftoff (back of stance)
-  ]
-  if n_swing == 1:
-    return np.array(stance + [[0.0, 0.0, z + rise]])
-  lift = rise
-  swing = [
-    [
-      -back + (front + back) * (k / (n_swing + 1)),
-      0.0,
-      z + lift * np.sin(np.pi * k / (n_swing + 1)),
+    ``n_swing`` keyframes carry the foot back to the front of stance. One gives the
+    original 6-keyframe cycle (duty factor 4/6); more lengthens the swing relative to
+    stance, lowering the duty factor toward the sub-0.5 range a galloping animal uses
+    and spreading the leg's return over more control steps.
+    """
+    front, back = stride if isinstance(stride, tuple) else (stride, stride)
+    z = _STANCE_Z if stance_z is None else stance_z
+    rise = (_SWING_Z - _STANCE_Z) if swing_lift is None else swing_lift
+    stance = [
+        [front, 0.0, z],  # touch down (front of stance)
+        [0.5 * front, 0.0, z],  # stand 1
+        [0.0, 0.0, z],  # stand 2
+        [-0.5 * back, 0.0, z],  # stand 3
+        [-back, 0.0, z],  # liftoff (back of stance)
     ]
-    for k in range(1, n_swing + 1)
-  ]
-  return np.array(stance + swing)
+    if n_swing == 1:
+        return np.array(stance + [[0.0, 0.0, z + rise]])
+    lift = rise
+    swing = [
+        [
+            -back + (front + back) * (k / (n_swing + 1)),
+            0.0,
+            z + lift * np.sin(np.pi * k / (n_swing + 1)),
+        ]
+        for k in range(1, n_swing + 1)
+    ]
+    return np.array(stance + swing)
 
 
 def _interpolate_triangle(t: float, positions: np.ndarray) -> np.ndarray:
-  """Linearly interpolate the looping keyframe trajectory at phase t in [0, 1)."""
-  n = len(positions)
-  t = t * n
-  progress = t - int(t)
-  start = int(t) % n
-  end = (start + 1) % n
-  return positions[start] + progress * (positions[end] - positions[start])
+    """Linearly interpolate the looping keyframe trajectory at phase t in [0, 1)."""
+    n = len(positions)
+    t = t * n
+    progress = t - int(t)
+    start = int(t) % n
+    end = (start + 1) % n
+    return positions[start] + progress * (positions[end] - positions[start])
 
 
 def _ik_single_leg(target_ee, leg_index, initial_guess):
-  fk = _FK[leg_index]
+    fk = _FK[leg_index]
 
-  def cost(theta):
-    return float(np.sum((fk(theta) - target_ee) ** 2))
+    def cost(theta):
+        return float(np.sum((fk(theta) - target_ee) ** 2))
 
-  theta = np.array(initial_guess, dtype=np.float64)
-  lr, max_iter, tol, eps = 10.0, 100, 1e-4, 1e-3
-  for _ in range(max_iter):
-    grad = np.zeros(3)
-    for i in range(3):
-      tp, tm = theta.copy(), theta.copy()
-      tp[i] += eps
-      tm[i] -= eps
-      grad[i] = (cost(tp) - cost(tm)) / (2 * eps)
-    theta -= lr * grad
-    if np.abs(fk(theta) - target_ee).mean() < tol:
-      break
-  return theta
+    theta = np.array(initial_guess, dtype=np.float64)
+    lr, max_iter, tol, eps = 10.0, 100, 1e-4, 1e-3
+    for _ in range(max_iter):
+        grad = np.zeros(3)
+        for i in range(3):
+            tp, tm = theta.copy(), theta.copy()
+            tp[i] += eps
+            tm[i] -= eps
+            grad[i] = (cost(tp) - cost(tm)) / (2 * eps)
+        theta -= lr * grad
+        if np.abs(fk(theta) - target_ee).mean() < tol:
+            break
+    return theta
 
 
 _TABLE_CACHE: dict[tuple[int, str], np.ndarray] = {}
 
 
 def _clamp_to_joint_limits(table: np.ndarray) -> np.ndarray:
-  model = get_spec().compile()
-  limits = np.array([model.joint(n).range for n in JOINT_NAMES])
-  return np.clip(table, limits[:, 0], limits[:, 1])
+    model = get_spec().compile()
+    limits = np.array([model.joint(n).range for n in JOINT_NAMES])
+    return np.clip(table, limits[:, 0], limits[:, 1])
 
 
-def build_joint_reference_table(n_samples: int = 100, gait: str = "trot") -> np.ndarray:
-  """Precompute the phase -> (n_samples, 12) joint-angle reference for a gait.
+def build_joint_reference_table(
+    n_samples: int = 100, gait: str = "trot"
+) -> np.ndarray:
+    """Precompute the phase -> (n_samples, 12) joint-angle reference for a gait.
 
-  Each leg reads the shared foot cycle at ``(phase - touchdown[leg]) mod 1`` (so
-  it lands at its touchdown phase), then the per-leg hip offset (and, for the
-  gallop, the fore-aft spread) is added before IK.
-  """
-  key = (n_samples, gait)
-  if key in _TABLE_CACHE:
-    return _TABLE_CACHE[key]
-  if gait == "jump" and _CAPTURED_JUMP_FILE.exists():
-    src = np.load(_CAPTURED_JUMP_FILE)["jump"]
-    if len(src) != n_samples:
-      # Non-periodic resample: the jump is one-shot, so the endpoints are the
-      # hold pose and the landed settle -- both preserved, no wrap.
-      xp = np.arange(len(src)) / (len(src) - 1)
-      grid = np.arange(n_samples) / (n_samples - 1)
-      src = np.stack([np.interp(grid, xp, src[:, j]) for j in range(12)], axis=1)
-    table = _clamp_to_joint_limits(np.ascontiguousarray(src))
-    _TABLE_CACHE[key] = table
-    return table
-  if gait in _CAPTURED_KEYS and _CAPTURED_GAITS_FILE.exists():
-    src = np.load(_CAPTURED_GAITS_FILE)[_CAPTURED_KEYS[gait]]
-    if len(src) != n_samples:
-      # Periodic linear resample onto the requested grid.
-      xp = np.arange(len(src) + 1) / len(src)
-      fp = np.vstack([src, src[:1]])
-      grid = np.arange(n_samples) / n_samples
-      src = np.stack([np.interp(grid, xp, fp[:, j]) for j in range(12)], axis=1)
-    table = np.ascontiguousarray(src)
-    if gait == "reach_back":
-      # The lookup pipeline time-reverses the phase for backward commands
-      # (eff_phase = -phase, floor-mod wrapped). The capture is indexed by the
-      # true forward-running phase, so store it pre-reversed -- the pipeline's
-      # reversal then plays the recording forward exactly as captured.
-      table = np.roll(table[::-1], 1, axis=0)
-    _TABLE_CACHE[key] = table
-    return table
-  if gait not in _GAIT_TOUCHDOWN:
-    # Only the trot generator ships. Every other slot -- the fast gait,
-    # anything a task schedules -- plays the trot until you provide something
-    # better: drop a captured_*.npz next to this file (see the capture notes
-    # above) or extend the generator tables. Finding a reference that beats
-    # the trot here is the optional lab.
-    table = build_joint_reference_table(n_samples, "trot")
-    _TABLE_CACHE[key] = table
-    return table
-  stride = _GAIT_STRIDE.get(gait)
-  touchdown = _GAIT_TOUCHDOWN[gait]
-  stance_z = _GAIT_STANCE_Z.get(gait)
-  swing_lift = _GAIT_SWING_LIFT.get(gait)
-  if touchdown is None or stride is None or stance_z is None or swing_lift is None:
-    raise NotImplementedError(
-      f"The '{gait}' gait is declared but not designed yet: fill in the "
-      f"TODO(student) block in {Path(__file__).name} (touchdown phases, "
-      "stride, stance depth, swing lift). Then look at it before training "
-      "with it:  uv run python -m mjlab.tasks.pupper_gait.visualize_reference "
-      f"--gait {gait}"
+    Each leg reads the shared foot cycle at ``(phase - touchdown[leg]) mod 1`` (so
+    it lands at its touchdown phase), then the per-leg hip offset (and, for the
+    gallop, the fore-aft spread) is added before IK.
+    """
+    key = (n_samples, gait)
+    if key in _TABLE_CACHE:
+        return _TABLE_CACHE[key]
+    if gait == "jump" and _CAPTURED_JUMP_FILE.exists():
+        src = np.load(_CAPTURED_JUMP_FILE)["jump"]
+        if len(src) != n_samples:
+            # Non-periodic resample: the jump is one-shot, so the endpoints are the
+            # hold pose and the landed settle -- both preserved, no wrap.
+            xp = np.arange(len(src)) / (len(src) - 1)
+            grid = np.arange(n_samples) / (n_samples - 1)
+            src = np.stack(
+                [np.interp(grid, xp, src[:, j]) for j in range(12)], axis=1
+            )
+        table = _clamp_to_joint_limits(np.ascontiguousarray(src))
+        _TABLE_CACHE[key] = table
+        return table
+    if gait in _CAPTURED_KEYS and _CAPTURED_GAITS_FILE.exists():
+        src = np.load(_CAPTURED_GAITS_FILE)[_CAPTURED_KEYS[gait]]
+        if len(src) != n_samples:
+            # Periodic linear resample onto the requested grid.
+            xp = np.arange(len(src) + 1) / len(src)
+            fp = np.vstack([src, src[:1]])
+            grid = np.arange(n_samples) / n_samples
+            src = np.stack(
+                [np.interp(grid, xp, fp[:, j]) for j in range(12)], axis=1
+            )
+        table = np.ascontiguousarray(src)
+        if gait == "reach_back":
+            # The lookup pipeline time-reverses the phase for backward commands
+            # (eff_phase = -phase, floor-mod wrapped). The capture is indexed by the
+            # true forward-running phase, so store it pre-reversed -- the pipeline's
+            # reversal then plays the recording forward exactly as captured.
+            table = np.roll(table[::-1], 1, axis=0)
+        _TABLE_CACHE[key] = table
+        return table
+    if gait not in _GAIT_TOUCHDOWN:
+        # Only the trot generator ships. Every other slot -- the fast gait,
+        # anything a task schedules -- plays the trot until you provide something
+        # better: drop a captured_*.npz next to this file (see the capture notes
+        # above) or extend the generator tables. Finding a reference that beats
+        # the trot here is the optional lab.
+        table = build_joint_reference_table(n_samples, "trot")
+        _TABLE_CACHE[key] = table
+        return table
+    stride = _GAIT_STRIDE.get(gait)
+    touchdown = _GAIT_TOUCHDOWN[gait]
+    stance_z = _GAIT_STANCE_Z.get(gait)
+    swing_lift = _GAIT_SWING_LIFT.get(gait)
+    if (
+        touchdown is None
+        or stride is None
+        or stance_z is None
+        or swing_lift is None
+    ):
+        raise NotImplementedError(
+            f"The '{gait}' gait is declared but not designed yet: fill in the "
+            f"TODO(student) block in {Path(__file__).name} (touchdown phases, "
+            "stride, stance depth, swing lift). Then look at it before training "
+            "with it:  uv run python -m mjlab.tasks.pupper_gait.visualize_reference "
+            f"--gait {gait}"
+        )
+    cycle = _base_cycle(
+        stride,
+        _GAIT_SWING_KF.get(gait, 1),
+        stance_z,
+        swing_lift,
     )
-  cycle = _base_cycle(
-    stride,
-    _GAIT_SWING_KF.get(gait, 1),
-    stance_z,
-    swing_lift,
-  )
-  x_shift = _GAIT_X_SHIFT.get(gait, (0.0, 0.0, 0.0, 0.0))
-  y_shift = _GAIT_Y_SHIFT.get(gait, (0.0, 0.0, 0.0, 0.0))
-  table = np.zeros((n_samples, 12))
-  guesses = [np.zeros(3) for _ in range(4)]
-  for i in range(n_samples):
-    t = i / n_samples
-    for leg in range(4):
-      foot = _interpolate_triangle((t - touchdown[leg]) % 1.0, cycle)
-      target = foot + _HIP_OFFSET[leg]
-      target[0] += x_shift[leg]
-      target[1] += y_shift[leg]
-      theta = _ik_single_leg(target, leg, guesses[leg])
-      table[i, 3 * leg : 3 * leg + 3] = theta
-      guesses[leg] = theta  # warm-start next phase for a continuous branch
-  _TABLE_CACHE[key] = table
-  return table
+    x_shift = _GAIT_X_SHIFT.get(gait, (0.0, 0.0, 0.0, 0.0))
+    y_shift = _GAIT_Y_SHIFT.get(gait, (0.0, 0.0, 0.0, 0.0))
+    table = np.zeros((n_samples, 12))
+    guesses = [np.zeros(3) for _ in range(4)]
+    for i in range(n_samples):
+        t = i / n_samples
+        for leg in range(4):
+            foot = _interpolate_triangle((t - touchdown[leg]) % 1.0, cycle)
+            target = foot + _HIP_OFFSET[leg]
+            target[0] += x_shift[leg]
+            target[1] += y_shift[leg]
+            theta = _ik_single_leg(target, leg, guesses[leg])
+            table[i, 3 * leg : 3 * leg + 3] = theta
+            guesses[leg] = (
+                theta  # warm-start next phase for a continuous branch
+            )
+    _TABLE_CACHE[key] = table
+    return table

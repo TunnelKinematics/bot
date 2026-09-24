@@ -26,69 +26,77 @@ from typing import TYPE_CHECKING
 
 import torch
 
-from mjlab.envs.mdp.actions.actions import JointPositionAction, JointPositionActionCfg
+from mjlab.envs.mdp.actions.actions import (
+    JointPositionAction,
+    JointPositionActionCfg,
+)
 from mjlab.tasks.pupper.mdp.latency import (
-  PUPPER_ACTION_LATENCY_DIST,
-  LatencyBuffer,
+    PUPPER_ACTION_LATENCY_DIST,
+    LatencyBuffer,
 )
 
 if TYPE_CHECKING:
-  from mjlab.envs import ManagerBasedRlEnv
+    from mjlab.envs import ManagerBasedRlEnv
 
 
 class DelayedJointPositionAction(JointPositionAction):
-  """Joint position control whose applied target is stochastically delayed."""
+    """Joint position control whose applied target is stochastically delayed."""
 
-  cfg: "DelayedJointPositionActionCfg"  # pyright: ignore[reportIncompatibleVariableOverride]
+    cfg: DelayedJointPositionActionCfg  # pyright: ignore[reportIncompatibleVariableOverride]
 
-  def __init__(
-    self, cfg: "DelayedJointPositionActionCfg", env: "ManagerBasedRlEnv"
-  ) -> None:
-    super().__init__(cfg=cfg, env=env)
-    self._buffer = LatencyBuffer(
-      cfg.latency_distribution, env.num_envs, (self.action_dim,), env.device
-    )
-    self._delayed_actions = torch.zeros_like(self._processed_actions)
+    def __init__(
+        self, cfg: DelayedJointPositionActionCfg, env: ManagerBasedRlEnv
+    ) -> None:
+        super().__init__(cfg=cfg, env=env)
+        self._buffer = LatencyBuffer(
+            cfg.latency_distribution,
+            env.num_envs,
+            (self.action_dim,),
+            env.device,
+        )
+        self._delayed_actions = torch.zeros_like(self._processed_actions)
 
-  @property
-  def applied_actions(self) -> torch.Tensor:
-    """The processed target actually sent to the actuators this step.
+    @property
+    def applied_actions(self) -> torch.Tensor:
+        """The processed target actually sent to the actuators this step.
 
-    Equals ``processed_actions`` when the sampled lag is 0 and the previous step's
-    target otherwise. Privileged: the robot cannot observe which lag its own bus
-    applied, so this must not reach the actor.
-    """
-    return self._delayed_actions
+        Equals ``processed_actions`` when the sampled lag is 0 and the previous step's
+        target otherwise. Privileged: the robot cannot observe which lag its own bus
+        applied, so this must not reach the actor.
+        """
+        return self._delayed_actions
 
-  def process_actions(self, actions: torch.Tensor) -> None:
-    # Runs once per env step, so this is where the lag advances. apply_actions
-    # runs once per physics step and must not push the buffer.
-    super().process_actions(actions)
-    self._delayed_actions = self._buffer.step(self._processed_actions)
+    def process_actions(self, actions: torch.Tensor) -> None:
+        # Runs once per env step, so this is where the lag advances. apply_actions
+        # runs once per physics step and must not push the buffer.
+        super().process_actions(actions)
+        self._delayed_actions = self._buffer.step(self._processed_actions)
 
-  def apply_actions(self) -> None:
-    encoder_bias = self._entity.data.encoder_bias[:, self._target_ids]
-    target = self._delayed_actions - encoder_bias
-    self._entity.set_joint_position_target(target, joint_ids=self._target_ids)
+    def apply_actions(self) -> None:
+        encoder_bias = self._entity.data.encoder_bias[:, self._target_ids]
+        target = self._delayed_actions - encoder_bias
+        self._entity.set_joint_position_target(
+            target, joint_ids=self._target_ids
+        )
 
-  def reset(self, env_ids: torch.Tensor | slice | None = None) -> None:
-    super().reset(env_ids)
-    self._buffer.reset(env_ids)
-    self._delayed_actions[env_ids] = 0.0
+    def reset(self, env_ids: torch.Tensor | slice | None = None) -> None:
+        super().reset(env_ids)
+        self._buffer.reset(env_ids)
+        self._delayed_actions[env_ids] = 0.0
 
 
 @dataclass(kw_only=True)
 class DelayedJointPositionActionCfg(JointPositionActionCfg):
-  """Joint position control with a categorical command latency.
+    """Joint position control with a categorical command latency.
 
-  ``latency_distribution[i]`` is the probability of an ``i``-env-step lag,
-  resampled every step and per environment. The default matches the CS 123 MJX
-  training config.
-  """
+    ``latency_distribution[i]`` is the probability of an ``i``-env-step lag,
+    resampled every step and per environment. The default matches the CS 123 MJX
+    training config.
+    """
 
-  latency_distribution: Sequence[float] = field(
-    default_factory=lambda: PUPPER_ACTION_LATENCY_DIST
-  )
+    latency_distribution: Sequence[float] = field(
+        default_factory=lambda: PUPPER_ACTION_LATENCY_DIST
+    )
 
-  def build(self, env: "ManagerBasedRlEnv") -> DelayedJointPositionAction:
-    return DelayedJointPositionAction(self, env)
+    def build(self, env: ManagerBasedRlEnv) -> DelayedJointPositionAction:
+        return DelayedJointPositionAction(self, env)

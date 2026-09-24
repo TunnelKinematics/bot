@@ -15,20 +15,23 @@ import dataclasses
 
 from mjlab.envs import ManagerBasedRlEnvCfg
 from mjlab.managers.event_manager import EventTermCfg
-from mjlab.managers.observation_manager import ObservationGroupCfg, ObservationTermCfg
+from mjlab.managers.observation_manager import (
+    ObservationGroupCfg,
+    ObservationTermCfg,
+)
 from mjlab.managers.reward_manager import RewardTermCfg
 from mjlab.managers.scene_entity_config import SceneEntityCfg
 from mjlab.tasks.pupper_gait import mdp
 from mjlab.tasks.pupper_gait.mdp.gait_reference import jump_capture_duration_s
 from mjlab.tasks.pupper_gait.pupper_gait_env_cfg import (
-  GAIT_BLEND_SPEED,
-  GAIT_FREQUENCY,
-  GAIT_N_SAMPLES,
-  GAIT_REWARD_PHASE_LEAD_STEPS,
-  GAIT_STD,
-  GALLOP_STD,
-  TROTGALLOP_ONSET,
-  pupper_mixed_gaits_env_cfg,
+    GAIT_BLEND_SPEED,
+    GAIT_FREQUENCY,
+    GAIT_N_SAMPLES,
+    GAIT_REWARD_PHASE_LEAD_STEPS,
+    GAIT_STD,
+    GALLOP_STD,
+    TROTGALLOP_ONSET,
+    pupper_mixed_gaits_env_cfg,
 )
 
 # The jump-start grid: one BASE gait cycle (0.75 s). v1 used the universal
@@ -111,160 +114,173 @@ ROBUST_KD_RANGE: tuple[float, float] = (0.6, 1.8)
 
 
 def pupper_mystery_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
-  """The mystery task (see module docstring)."""
-  return _apply_jump_slots(pupper_mixed_gaits_env_cfg(play=play), play)
+    """The mystery task (see module docstring)."""
+    return _apply_jump_slots(pupper_mixed_gaits_env_cfg(play=play), play)
 
 
 def pupper_mystery_bumpy_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
-  """The mystery task on Perlin bumps, with widened sim2real randomization.
+    """The mystery task on Perlin bumps, with widened sim2real randomization.
 
-  Built on the rough scene, then ``_make_bumpy`` (which also drops the
-  critic's height scan so flat-trained checkpoints warm-start with identical
-  observation shapes), then the jump layer, then the widened friction and
-  PD-gain randomization. Intended to be resumed from a converged flat
-  MixedGaitsJump checkpoint rather than trained from scratch.
-  """
-  from mjlab.tasks.pupper.pupper_env_cfg import pupper_rough_env_cfg
-  from mjlab.tasks.pupper_gait.pupper_gait_env_cfg import _make_bumpy
+    Built on the rough scene, then ``_make_bumpy`` (which also drops the
+    critic's height scan so flat-trained checkpoints warm-start with identical
+    observation shapes), then the jump layer, then the widened friction and
+    PD-gain randomization. Intended to be resumed from a converged flat
+    MixedGaitsJump checkpoint rather than trained from scratch.
+    """
+    from mjlab.tasks.pupper.pupper_env_cfg import pupper_rough_env_cfg
+    from mjlab.tasks.pupper_gait.pupper_gait_env_cfg import _make_bumpy
 
-  cfg = pupper_mixed_gaits_env_cfg(play=play, base=pupper_rough_env_cfg(play=play))
-  cfg = _make_bumpy(cfg)
-  cfg = _apply_jump_slots(cfg, play)
+    cfg = pupper_mixed_gaits_env_cfg(
+        play=play, base=pupper_rough_env_cfg(play=play)
+    )
+    cfg = _make_bumpy(cfg)
+    cfg = _apply_jump_slots(cfg, play)
 
-  cfg.events["foot_friction"].params["ranges"] = ROBUST_FOOT_FRICTION_RANGE
-  cfg.events["pd_gains"].params["kp_range"] = ROBUST_KP_RANGE
-  cfg.events["pd_gains"].params["kd_range"] = ROBUST_KD_RANGE
+    cfg.events["foot_friction"].params["ranges"] = ROBUST_FOOT_FRICTION_RANGE
+    cfg.events["pd_gains"].params["kp_range"] = ROBUST_KP_RANGE
+    cfg.events["pd_gains"].params["kd_range"] = ROBUST_KD_RANGE
 
-  # This is a finetune-only task, resumed from a converged flat checkpoint:
-  # the airborne imitation pretrain would pin a mature policy in the air and
-  # zero every reward for its first 500 iterations, delaying the actual
-  # robustness objective. Dropped here; the flat task keeps it.
-  cfg.events.pop("hold_base_airborne", None)
-  cfg.curriculum.pop("pretrain_rewards", None)
-  return cfg
+    # This is a finetune-only task, resumed from a converged flat checkpoint:
+    # the airborne imitation pretrain would pin a mature policy in the air and
+    # zero every reward for its first 500 iterations, delaying the actual
+    # robustness objective. Dropped here; the flat task keeps it.
+    cfg.events.pop("hold_base_airborne", None)
+    cfg.curriculum.pop("pretrain_rewards", None)
+    return cfg
 
 
-def _apply_jump_slots(cfg: ManagerBasedRlEnvCfg, play: bool) -> ManagerBasedRlEnvCfg:
-  """Layer the jump-slot machinery onto a MixedGaits cfg."""
+def _apply_jump_slots(
+    cfg: ManagerBasedRlEnvCfg, play: bool
+) -> ManagerBasedRlEnvCfg:
+    """Layer the jump-slot machinery onto a MixedGaits cfg."""
 
-  params = {
-    "command_name": "twist",
-    "frequency": GAIT_FREQUENCY,
-    "blend_speed": GAIT_BLEND_SPEED,
-    "n_samples": GAIT_N_SAMPLES,
-    "gallop_speed": TROTGALLOP_ONSET,
-    "jump_duration_s": JUMP_PLAYBACK_S,
-    "slot_s": JUMP_ACTIVE_S,
-    "cross_fade_s": JUMP_CROSS_FADE_S,
-  }
-
-  # Composite reference in the same 48-dim actor frame / privileged critic
-  # layout as MixedGaits, so checkpoints stay shape-compatible.
-  cfg.observations["actor"] = ObservationGroupCfg(
-    terms={
-      "policy": ObservationTermCfg(
-        func=mdp.mixed_jump_actor_obs,
-        params={
-          "add_noise": True,
-          "imu_latency_distribution": mdp.PUPPER_IMU_LATENCY_DIST,
-          **params,
-        },
-      ),
-    },
-    concatenate_terms=True,
-    enable_corruption=False,
-    history_length=20,
-  )
-  cfg.observations["critic"].terms["gait_reference"] = ObservationTermCfg(
-    func=mdp.mixed_jump_reference_obs, params=dict(params)
-  )
-
-  # One tracking term over the composite reference: strict locomotion std,
-  # loose inside the slot. Keeps the "gait_tracking" name so the inherited
-  # airborne pretrain's keep-list still matches.
-  weight = cfg.rewards["gait_tracking"].weight
-  cfg.rewards["gait_tracking"] = RewardTermCfg(
-    func=mdp.mixed_jump_tracking,
-    weight=weight,
-    params={
-      "asset_cfg": SceneEntityCfg("robot", joint_names=(".*",)),
-      "std": GAIT_STD,
-      "std_slot": GALLOP_STD,
-      "std_loose_s": JUMP_REWARD_WINDOW_S,
-      "phase_lead_steps": GAIT_REWARD_PHASE_LEAD_STEPS,
-      **params,
-    },
-  )
-
-  # Velocity carry-through: stock linear tracking outside the slot, xy-only
-  # inside (the shared term's vz^2 folding would zero the gradient in flight).
-  # Weight and std carry over from MixedGaits.
-  lin = cfg.rewards["track_linear_velocity"]
-  lin.func = mdp.track_linear_velocity_windowed
-  lin.params = {
-    "std": lin.params["std"],
-    "command_name": "twist",
-    "slot_s": JUMP_REWARD_WINDOW_S,
-    "slot_weight_mult": JUMP_SLOT_VEL_MULT,
-  }
-
-  # Terms that fight a jump: off inside the slot, stock outside (per-step
-  # mask; weights unchanged). base_height keeps its gait_base_height params.
-  for name, wrapper in (
-    ("base_height", mdp.base_height_outside_slot),
-    ("lin_vel_z_l2", mdp.lin_vel_z_l2_outside_slot),
-    ("air_time", mdp.air_time_outside_slot),
-    ("foot_slip", mdp.foot_slip_outside_slot),
-    ("stand_still_pose", mdp.stand_still_pose_outside_slot),
-    ("stand_still_joint_velocity", mdp.stand_still_joint_velocity_outside_slot),
-  ):
-    assert name in cfg.rewards, f"expected '{name}' in the MixedGaits reward set"
-    cfg.rewards[name].func = wrapper
-    cfg.rewards[name].params = {
-      "slot_s": JUMP_REWARD_WINDOW_S,
-      **cfg.rewards[name].params,
+    params = {
+        "command_name": "twist",
+        "frequency": GAIT_FREQUENCY,
+        "blend_speed": GAIT_BLEND_SPEED,
+        "n_samples": GAIT_N_SAMPLES,
+        "gallop_speed": TROTGALLOP_ONSET,
+        "jump_duration_s": JUMP_PLAYBACK_S,
+        "slot_s": JUMP_ACTIVE_S,
+        "cross_fade_s": JUMP_CROSS_FADE_S,
     }
 
-  # The reward machinery no other task pays for. Slot-gated; what it is worth
-  # -- if anything -- is your call, like every weight in this codebase.
-  cfg.rewards["jump_up_velocity"] = RewardTermCfg(
-    func=mdp.slot_jump_up_velocity,
-    weight=0.0,
-    params={"slot_s": JUMP_REWARD_WINDOW_S},
-  )
-  cfg.rewards["jump_airborne_height"] = RewardTermCfg(
-    func=mdp.slot_jump_airborne_height,
-    weight=0.0,
-    params={
-      "slot_s": JUMP_REWARD_WINDOW_S,
-      "stand_height": JUMP_STAND_HEIGHT,
-      "height_cap": JUMP_HEIGHT_CAP,
-    },
-  )
+    # Composite reference in the same 48-dim actor frame / privileged critic
+    # layout as MixedGaits, so checkpoints stay shape-compatible.
+    cfg.observations["actor"] = ObservationGroupCfg(
+        terms={
+            "policy": ObservationTermCfg(
+                func=mdp.mixed_jump_actor_obs,
+                params={
+                    "add_noise": True,
+                    "imu_latency_distribution": mdp.PUPPER_IMU_LATENCY_DIST,
+                    **params,
+                },
+            ),
+        },
+        concatenate_terms=True,
+        enable_corruption=False,
+        history_length=20,
+    )
+    cfg.observations["critic"].terms["gait_reference"] = ObservationTermCfg(
+        func=mdp.mixed_jump_reference_obs, params=dict(params)
+    )
 
-  # Belly no-hit zone, always on -- landing a jump belly-first bumps the
-  # battery whether or not a slot is active, and locomotion gets the guard
-  # for free.
-  cfg.rewards["torso_clearance"] = RewardTermCfg(
-    func=mdp.torso_clearance,
-    weight=0.0,
-    params={"min_clearance": JUMP_TORSO_CLEARANCE},
-  )
+    # One tracking term over the composite reference: strict locomotion std,
+    # loose inside the slot. Keeps the "gait_tracking" name so the inherited
+    # airborne pretrain's keep-list still matches.
+    weight = cfg.rewards["gait_tracking"].weight
+    cfg.rewards["gait_tracking"] = RewardTermCfg(
+        func=mdp.mixed_jump_tracking,
+        weight=weight,
+        params={
+            "asset_cfg": SceneEntityCfg("robot", joint_names=(".*",)),
+            "std": GAIT_STD,
+            "std_slot": GALLOP_STD,
+            "std_loose_s": JUMP_REWARD_WINDOW_S,
+            "phase_lead_steps": GAIT_REWARD_PHASE_LEAD_STEPS,
+            **params,
+        },
+    )
 
-  # The per-episode jump schedule. Active in play too: eval shows jumps.
-  cfg.events["reset_jump_schedule"] = EventTermCfg(
-    mode="reset",
-    func=mdp.reset_jump_schedule,
-    params={"grid_s": JUMP_SLOT_S, "p_no_jump": JUMP_P_NO_JUMP},
-  )
+    # Velocity carry-through: stock linear tracking outside the slot, xy-only
+    # inside (the shared term's vz^2 folding would zero the gradient in flight).
+    # Weight and std carry over from MixedGaits.
+    lin = cfg.rewards["track_linear_velocity"]
+    lin.func = mdp.track_linear_velocity_windowed
+    lin.params = {
+        "std": lin.params["std"],
+        "command_name": "twist",
+        "slot_s": JUMP_REWARD_WINDOW_S,
+        "slot_weight_mult": JUMP_SLOT_VEL_MULT,
+    }
 
-  # Same velocity command, but its play-viewer GUI grows a Jump button that
-  # schedules a slot at the next gait gap for the viewed env -- the
-  # interactive stand-in for the robot's eventual X button. Shallow field
-  # copy, same reasoning as the delayed-action swap in pupper_env_cfg.
-  twist = cfg.commands["twist"]
-  twist_fields = {f.name: getattr(twist, f.name) for f in dataclasses.fields(twist)}
-  cfg.commands["twist"] = mdp.MixedJumpVelocityCommandCfg(
-    **twist_fields, jump_slot_s=JUMP_SLOT_S, jump_busy_s=JUMP_REWARD_WINDOW_S
-  )
-  return cfg
+    # Terms that fight a jump: off inside the slot, stock outside (per-step
+    # mask; weights unchanged). base_height keeps its gait_base_height params.
+    for name, wrapper in (
+        ("base_height", mdp.base_height_outside_slot),
+        ("lin_vel_z_l2", mdp.lin_vel_z_l2_outside_slot),
+        ("air_time", mdp.air_time_outside_slot),
+        ("foot_slip", mdp.foot_slip_outside_slot),
+        ("stand_still_pose", mdp.stand_still_pose_outside_slot),
+        (
+            "stand_still_joint_velocity",
+            mdp.stand_still_joint_velocity_outside_slot,
+        ),
+    ):
+        assert name in cfg.rewards, (
+            f"expected '{name}' in the MixedGaits reward set"
+        )
+        cfg.rewards[name].func = wrapper
+        cfg.rewards[name].params = {
+            "slot_s": JUMP_REWARD_WINDOW_S,
+            **cfg.rewards[name].params,
+        }
+
+    # The reward machinery no other task pays for. Slot-gated; what it is worth
+    # -- if anything -- is your call, like every weight in this codebase.
+    cfg.rewards["jump_up_velocity"] = RewardTermCfg(
+        func=mdp.slot_jump_up_velocity,
+        weight=0.0,
+        params={"slot_s": JUMP_REWARD_WINDOW_S},
+    )
+    cfg.rewards["jump_airborne_height"] = RewardTermCfg(
+        func=mdp.slot_jump_airborne_height,
+        weight=0.0,
+        params={
+            "slot_s": JUMP_REWARD_WINDOW_S,
+            "stand_height": JUMP_STAND_HEIGHT,
+            "height_cap": JUMP_HEIGHT_CAP,
+        },
+    )
+
+    # Belly no-hit zone, always on -- landing a jump belly-first bumps the
+    # battery whether or not a slot is active, and locomotion gets the guard
+    # for free.
+    cfg.rewards["torso_clearance"] = RewardTermCfg(
+        func=mdp.torso_clearance,
+        weight=0.0,
+        params={"min_clearance": JUMP_TORSO_CLEARANCE},
+    )
+
+    # The per-episode jump schedule. Active in play too: eval shows jumps.
+    cfg.events["reset_jump_schedule"] = EventTermCfg(
+        mode="reset",
+        func=mdp.reset_jump_schedule,
+        params={"grid_s": JUMP_SLOT_S, "p_no_jump": JUMP_P_NO_JUMP},
+    )
+
+    # Same velocity command, but its play-viewer GUI grows a Jump button that
+    # schedules a slot at the next gait gap for the viewed env -- the
+    # interactive stand-in for the robot's eventual X button. Shallow field
+    # copy, same reasoning as the delayed-action swap in pupper_env_cfg.
+    twist = cfg.commands["twist"]
+    twist_fields = {
+        f.name: getattr(twist, f.name) for f in dataclasses.fields(twist)
+    }
+    cfg.commands["twist"] = mdp.MixedJumpVelocityCommandCfg(
+        **twist_fields,
+        jump_slot_s=JUMP_SLOT_S,
+        jump_busy_s=JUMP_REWARD_WINDOW_S,
+    )
+    return cfg

@@ -54,64 +54,70 @@ PUPPER_ACTION_LATENCY_PHYSICS_STEPS: int = 4
 
 
 class LatencyBuffer:
-  """Newest-first value buffer with a per-step, per-env categorical lag.
-
-  Args:
-    distribution: Probability of each lag in steps; ``distribution[i]`` is the
-      probability of reading the value from ``i`` steps ago. Must be non-empty
-      and sum to a positive value (it is normalized internally).
-    num_envs: Number of parallel environments.
-    feature_shape: Trailing shape of the buffered value, e.g. ``(6,)``.
-    device: Torch device for storage and sampling.
-  """
-
-  def __init__(
-    self,
-    distribution: Sequence[float],
-    num_envs: int,
-    feature_shape: tuple[int, ...],
-    device: torch.device | str,
-  ) -> None:
-    if len(distribution) == 0:
-      raise ValueError("Latency distribution must have at least one entry.")
-    probs = torch.as_tensor(distribution, dtype=torch.float32, device=device)
-    if torch.any(probs < 0.0) or float(probs.sum()) <= 0.0:
-      raise ValueError(
-        f"Latency distribution must be non-negative with positive sum, got "
-        f"{list(distribution)}."
-      )
-    self._probs = (probs / probs.sum()).expand(num_envs, -1).contiguous()
-    self._buffer = torch.zeros(
-      (num_envs, len(distribution), *feature_shape), device=device
-    )
-    self._num_envs = num_envs
-
-  @property
-  def max_lag(self) -> int:
-    """Largest lag the buffer can serve, in steps."""
-    return self._buffer.shape[1] - 1
-
-  def reset(self, env_ids: torch.Tensor | slice | None = None) -> None:
-    """Zero the buffered history for the given environments.
-
-    Matches the MJX env, which reinitializes the buffers to zeros on reset.
-    """
-    if env_ids is None:
-      self._buffer.zero_()
-    else:
-      self._buffer[env_ids] = 0.0
-
-  def step(self, value: torch.Tensor) -> torch.Tensor:
-    """Push ``value`` and return a lagged sample.
+    """Newest-first value buffer with a per-step, per-env categorical lag.
 
     Args:
-      value: Shape ``(num_envs, *feature_shape)``.
-
-    Returns:
-      The lagged value, same shape as ``value``.
+      distribution: Probability of each lag in steps; ``distribution[i]`` is the
+        probability of reading the value from ``i`` steps ago. Must be non-empty
+        and sum to a positive value (it is normalized internally).
+      num_envs: Number of parallel environments.
+      feature_shape: Trailing shape of the buffered value, e.g. ``(6,)``.
+      device: Torch device for storage and sampling.
     """
-    # Roll then overwrite index 0: buffer[:, i] is the value from i steps ago.
-    self._buffer = torch.roll(self._buffer, shifts=1, dims=1)
-    self._buffer[:, 0] = value
-    lag = torch.multinomial(self._probs, num_samples=1).squeeze(-1)
-    return self._buffer[torch.arange(self._num_envs, device=value.device), lag]
+
+    def __init__(
+        self,
+        distribution: Sequence[float],
+        num_envs: int,
+        feature_shape: tuple[int, ...],
+        device: torch.device | str,
+    ) -> None:
+        if len(distribution) == 0:
+            raise ValueError(
+                "Latency distribution must have at least one entry."
+            )
+        probs = torch.as_tensor(
+            distribution, dtype=torch.float32, device=device
+        )
+        if torch.any(probs < 0.0) or float(probs.sum()) <= 0.0:
+            raise ValueError(
+                f"Latency distribution must be non-negative with positive sum, got "
+                f"{list(distribution)}."
+            )
+        self._probs = (probs / probs.sum()).expand(num_envs, -1).contiguous()
+        self._buffer = torch.zeros(
+            (num_envs, len(distribution), *feature_shape), device=device
+        )
+        self._num_envs = num_envs
+
+    @property
+    def max_lag(self) -> int:
+        """Largest lag the buffer can serve, in steps."""
+        return self._buffer.shape[1] - 1
+
+    def reset(self, env_ids: torch.Tensor | slice | None = None) -> None:
+        """Zero the buffered history for the given environments.
+
+        Matches the MJX env, which reinitializes the buffers to zeros on reset.
+        """
+        if env_ids is None:
+            self._buffer.zero_()
+        else:
+            self._buffer[env_ids] = 0.0
+
+    def step(self, value: torch.Tensor) -> torch.Tensor:
+        """Push ``value`` and return a lagged sample.
+
+        Args:
+          value: Shape ``(num_envs, *feature_shape)``.
+
+        Returns:
+          The lagged value, same shape as ``value``.
+        """
+        # Roll then overwrite index 0: buffer[:, i] is the value from i steps ago.
+        self._buffer = torch.roll(self._buffer, shifts=1, dims=1)
+        self._buffer[:, 0] = value
+        lag = torch.multinomial(self._probs, num_samples=1).squeeze(-1)
+        return self._buffer[
+            torch.arange(self._num_envs, device=value.device), lag
+        ]

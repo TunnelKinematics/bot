@@ -20,13 +20,18 @@ from mjlab.utils.spec_config import CollisionCfg
 ##
 
 PUPPER_XML: Path = (
-  MJLAB_SRC_PATH / "asset_zoo" / "robots" / "pupper_v3" / "xmls" / "pupper_v3.xml"
+    MJLAB_SRC_PATH
+    / "asset_zoo"
+    / "robots"
+    / "pupper_v3"
+    / "xmls"
+    / "pupper_v3.xml"
 )
 assert PUPPER_XML.exists()
 
 
 def get_spec() -> mujoco.MjSpec:
-  return mujoco.MjSpec.from_file(str(PUPPER_XML))
+    return mujoco.MjSpec.from_file(str(PUPPER_XML))
 
 
 ##
@@ -53,10 +58,10 @@ DEFAULT_POSE: tuple[float, ...] = (
 )  # fmt: skip
 
 FOOT_SITE_NAMES: tuple[str, ...] = (
-  "leg_front_r_3_foot_site",
-  "leg_front_l_3_foot_site",
-  "leg_back_r_3_foot_site",
-  "leg_back_l_3_foot_site",
+    "leg_front_r_3_foot_site",
+    "leg_front_l_3_foot_site",
+    "leg_back_r_3_foot_site",
+    "leg_back_l_3_foot_site",
 )
 
 ##
@@ -73,13 +78,13 @@ PUPPER_KD = 0.25
 PUPPER_EFFORT_LIMIT = 3.0  # Nm, from forcerange="-3 3".
 
 PUPPER_ACTUATOR = BuiltinPositionActuatorCfg(
-  target_names_expr=JOINT_NAMES,
-  stiffness=PUPPER_KP,
-  damping=PUPPER_KD,
-  effort_limit=PUPPER_EFFORT_LIMIT,
-  armature=0.0016,
-  frictionloss=0.125,
-  viscous_damping=0.01,
+    target_names_expr=JOINT_NAMES,
+    stiffness=PUPPER_KP,
+    damping=PUPPER_KD,
+    effort_limit=PUPPER_EFFORT_LIMIT,
+    armature=0.0016,
+    frictionloss=0.125,
+    viscous_damping=0.01,
 )
 
 ##
@@ -105,16 +110,16 @@ SINGLE_OBS_DIM: int = 36
 ##
 
 PUPPER_COLLISION = CollisionCfg(
-  geom_names_expr=(r".*_collision$",),
-  contype=1,
-  conaffinity=1,
-  condim=3,
-  priority={r".*_3_collision$": 1},
-  friction={
-    r".*_3_collision$": (0.8, 0.02, 0.01),
-    r".*_2_collision$": (0.8, 0.02, 0.01),
-  },
-  solimp=(0.015, 1.0, 0.031),
+    geom_names_expr=(r".*_collision$",),
+    contype=1,
+    conaffinity=1,
+    condim=3,
+    priority={r".*_3_collision$": 1},
+    friction={
+        r".*_3_collision$": (0.8, 0.02, 0.01),
+        r".*_2_collision$": (0.8, 0.02, 0.01),
+    },
+    solimp=(0.015, 1.0, 0.031),
 )
 
 ##
@@ -122,11 +127,12 @@ PUPPER_COLLISION = CollisionCfg(
 ##
 
 HOME_KEYFRAME = EntityCfg.InitialStateCfg(
-  pos=(0.0, 0.0, 0.18),
-  joint_pos={
-    name: angle for name, angle in zip(JOINT_NAMES, DEFAULT_POSE, strict=True)
-  },
-  joint_vel={".*": 0.0},
+    pos=(0.0, 0.0, 0.18),
+    joint_pos={
+        name: angle
+        for name, angle in zip(JOINT_NAMES, DEFAULT_POSE, strict=True)
+    },
+    joint_vel={".*": 0.0},
 )
 
 ##
@@ -141,13 +147,13 @@ HOME_KEYFRAME = EntityCfg.InitialStateCfg(
 ##
 
 PUPPER_MUJOCO_OPTIONS: dict = {
-  "timestep": 0.004,
-  "integrator": "euler",
-  "cone": "pyramidal",
-  "impratio": 10.0,
-  "iterations": 2,
-  "ls_iterations": 5,
-  "disableflags": ("eulerdamp",),
+    "timestep": 0.004,
+    "integrator": "euler",
+    "cone": "pyramidal",
+    "impratio": 10.0,
+    "iterations": 2,
+    "ls_iterations": 5,
+    "disableflags": ("eulerdamp",),
 }
 
 # Control runs at 50 Hz: 0.02 s / 0.004 s = 5 physics steps per control step.
@@ -158,32 +164,32 @@ PUPPER_DECIMATION: int = 5
 ##
 
 PUPPER_ARTICULATION = EntityArticulationInfoCfg(
-  actuators=(PUPPER_ACTUATOR,),
-  soft_joint_pos_limit_factor=1.0,
+    actuators=(PUPPER_ACTUATOR,),
+    soft_joint_pos_limit_factor=1.0,
 )
 
 
 def get_pupper_robot_cfg() -> EntityCfg:
-  """Get a fresh Pupper v3 robot configuration instance."""
-  return EntityCfg(
-    init_state=HOME_KEYFRAME,
-    collisions=(PUPPER_COLLISION,),
-    spec_fn=get_spec,
-    articulation=PUPPER_ARTICULATION,
-  )
+    """Get a fresh Pupper v3 robot configuration instance."""
+    return EntityCfg(
+        init_state=HOME_KEYFRAME,
+        collisions=(PUPPER_COLLISION,),
+        spec_fn=get_spec,
+        articulation=PUPPER_ARTICULATION,
+    )
 
 
 # Per-joint action scale map (uniform across joints), for parity with mjlab's
 # JointPositionActionCfg scale API.
 PUPPER_ACTION_SCALE_MAP: dict[str, float] = {
-  name: PUPPER_ACTION_SCALE for name in JOINT_NAMES
+    name: PUPPER_ACTION_SCALE for name in JOINT_NAMES
 }
 
 
 if __name__ == "__main__":
-  import mujoco.viewer as viewer
+    import mujoco.viewer as viewer
 
-  from mjlab.entity.entity import Entity
+    from mjlab.entity.entity import Entity
 
-  robot = Entity(get_pupper_robot_cfg())
-  viewer.launch(robot.spec.compile())
+    robot = Entity(get_pupper_robot_cfg())
+    viewer.launch(robot.spec.compile())

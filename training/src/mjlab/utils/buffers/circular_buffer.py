@@ -80,163 +80,181 @@ import torch
 
 
 class CircularBuffer:
-  """Fixed-length circular buffer for batched tensor history.
+    """Fixed-length circular buffer for batched tensor history.
 
-  Stores history with shape (max_len, batch_size, ...) internally.
-  The `buffer` property returns chronologically ordered data (oldest to newest)
-  with shape (batch_size, max_len, ...).
+    Stores history with shape (max_len, batch_size, ...) internally.
+    The `buffer` property returns chronologically ordered data (oldest to newest)
+    with shape (batch_size, max_len, ...).
 
-  Storage and Retrieval
-  ---------------------
-  Internal storage (circular):
-    ┌─────┬─────┬─────┐
-    │  2  │  3  │  1  │  <- pointer at index 1 (newest = 3)
-    └─────┴─────┴─────┘
-     idx:0  idx:1  idx:2
+    Storage and Retrieval
+    ---------------------
+    Internal storage (circular):
+      ┌─────┬─────┬─────┐
+      │  2  │  3  │  1  │  <- pointer at index 1 (newest = 3)
+      └─────┴─────┴─────┘
+       idx:0  idx:1  idx:2
 
-  buffer property returns (chronological, oldest→newest):
-    ┌─────┬─────┬─────┐
-    │  1  │  2  │  3  │
-    └─────┴─────┴─────┘
+    buffer property returns (chronological, oldest→newest):
+      ┌─────┬─────┬─────┐
+      │  1  │  2  │  3  │
+      └─────┴─────┴─────┘
 
-  LIFO Retrieval via __getitem__
-  -------------------------------
-  Given buffer with [1, 2, 3] (oldest to newest):
-    buffer[lag=0] -> 3  (most recent)
-    buffer[lag=1] -> 2  (one step back)
-    buffer[lag=2] -> 1  (oldest)
+    LIFO Retrieval via __getitem__
+    -------------------------------
+    Given buffer with [1, 2, 3] (oldest to newest):
+      buffer[lag=0] -> 3  (most recent)
+      buffer[lag=1] -> 2  (one step back)
+      buffer[lag=2] -> 1  (oldest)
 
-  Per-Batch Reset
-  ---------------
-  After reset(batch_ids=[1]):
-    Batch 0: [1, 2, 3]  (unchanged)
-    Batch 1: [0, 0, 0]  (zeroed, current_length=0)
-    Batch 2: [1, 2, 3]  (unchanged)
+    Per-Batch Reset
+    ---------------
+    After reset(batch_ids=[1]):
+      Batch 0: [1, 2, 3]  (unchanged)
+      Batch 1: [0, 0, 0]  (zeroed, current_length=0)
+      Batch 2: [1, 2, 3]  (unchanged)
 
-  Next append backfills reset rows with first value.
-
-  Args:
-    max_len: Maximum number of historical frames to retain.
-    batch_size: Size of the batch dimension.
-    device: Torch device for storage.
-  """
-
-  def __init__(self, max_len: int, batch_size: int, device: str) -> None:
-    if max_len < 1:
-      raise ValueError(f"Buffer size must be >= 1, got {max_len}")
-
-    self._max_len = max_len
-    self._batch_size = batch_size
-    self._device = device
-    self._pointer: int = -1
-    self._buffer: torch.Tensor | None = None
-    self._all_indices = torch.arange(batch_size, device=device)
-    self._num_pushes = torch.zeros(batch_size, dtype=torch.long, device=device)
-    self._max_len_tensor = torch.full(
-      (batch_size,), max_len, dtype=torch.long, device=device
-    )
-
-  @property
-  def batch_size(self) -> int:
-    return self._batch_size
-
-  @property
-  def device(self) -> str:
-    return self._device
-
-  @property
-  def max_length(self) -> int:
-    return self._max_len
-
-  @property
-  def current_length(self) -> torch.Tensor:
-    """Per-batch count of valid frames. Shape: (batch_size,)."""
-    return torch.minimum(self._num_pushes, self._max_len_tensor)
-
-  @property
-  def is_initialized(self) -> bool:
-    """Check if the buffer has been initialized with at least one append."""
-    return self._buffer is not None
-
-  @property
-  def buffer(self) -> torch.Tensor:
-    """History in chronological order (oldest to newest).
-
-    Returns:
-      Tensor of shape (batch_size, max_len, ...) where index 0 is oldest
-      and index -1 is newest.
-    """
-    if self._buffer is None:
-      raise RuntimeError("Buffer not initialized. Call append() first.")
-
-    start = (self._pointer + 1) % self._max_len
-    idx = (torch.arange(self._max_len, device=self._device) + start) % self._max_len
-    buf = self._buffer.index_select(0, idx)  # (max_len, batch, ...)
-    return buf.transpose(0, 1)  # (batch, max_len, ...)
-
-  def reset(self, batch_ids: Sequence[int] | torch.Tensor | None = None) -> None:
-    """Zero out values and counters for specified batch rows.
+    Next append backfills reset rows with first value.
 
     Args:
-      batch_ids: Batch indices to reset, or None to reset all.
+      max_len: Maximum number of historical frames to retain.
+      batch_size: Size of the batch dimension.
+      device: Torch device for storage.
     """
-    ids: Sequence[int] | torch.Tensor | slice = (
-      slice(None) if batch_ids is None else batch_ids
-    )
-    self._num_pushes[ids] = 0
-    if self._buffer is not None:
-      self._buffer[:, ids] = 0.0
 
-  def append(self, data: torch.Tensor) -> None:
-    """Append a new frame for all batch elements.
+    def __init__(self, max_len: int, batch_size: int, device: str) -> None:
+        if max_len < 1:
+            raise ValueError(f"Buffer size must be >= 1, got {max_len}")
 
-    Args:
-      data: Tensor of shape (batch_size, ...).
-    """
-    if data.shape[0] != self._batch_size:
-      raise ValueError(f"Expected batch size {self._batch_size}, got {data.shape[0]}")
+        self._max_len = max_len
+        self._batch_size = batch_size
+        self._device = device
+        self._pointer: int = -1
+        self._buffer: torch.Tensor | None = None
+        self._all_indices = torch.arange(batch_size, device=device)
+        self._num_pushes = torch.zeros(
+            batch_size, dtype=torch.long, device=device
+        )
+        self._max_len_tensor = torch.full(
+            (batch_size,), max_len, dtype=torch.long, device=device
+        )
 
-    data = data.to(self._device)
+    @property
+    def batch_size(self) -> int:
+        return self._batch_size
 
-    if self._buffer is None:
-      self._pointer = -1
-      self._buffer = torch.empty(
-        (self._max_len, *data.shape), dtype=data.dtype, device=self._device
-      )
+    @property
+    def device(self) -> str:
+        return self._device
 
-    self._pointer = (self._pointer + 1) % self._max_len
-    self._buffer[self._pointer] = data
+    @property
+    def max_length(self) -> int:
+        return self._max_len
 
-    # Backfill entire history with first frame for newly initialized batches.
-    # The condition and data are reshaped to broadcast against the buffer's
-    # (max_len, batch_size, ...) shape for data of any rank.
-    is_first_push = self._num_pushes == 0
-    condition = is_first_push.view(1, self._batch_size, *([1] * (data.ndim - 1)))
-    torch.where(condition, data.unsqueeze(0), self._buffer, out=self._buffer)
+    @property
+    def current_length(self) -> torch.Tensor:
+        """Per-batch count of valid frames. Shape: (batch_size,)."""
+        return torch.minimum(self._num_pushes, self._max_len_tensor)
 
-    self._num_pushes += 1
+    @property
+    def is_initialized(self) -> bool:
+        """Check if the buffer has been initialized with at least one append."""
+        return self._buffer is not None
 
-  def __getitem__(self, key: torch.Tensor | int) -> torch.Tensor:
-    """Retrieve lagged frames per batch (LIFO).
+    @property
+    def buffer(self) -> torch.Tensor:
+        """History in chronological order (oldest to newest).
 
-    Args:
-      key: Per-batch lags (Tensor) or shared lag (int). Shape (batch_size,) or scalar.
-    """
-    if self._buffer is None:
-      raise RuntimeError("Buffer not initialized. Call append() first.")
+        Returns:
+          Tensor of shape (batch_size, max_len, ...) where index 0 is oldest
+          and index -1 is newest.
+        """
+        if self._buffer is None:
+            raise RuntimeError("Buffer not initialized. Call append() first.")
 
-    if isinstance(key, int):
-      key = torch.full((self._batch_size,), key, dtype=torch.long, device=self._device)
-    else:
-      if key.ndim == 0:
-        key = key.expand(self._batch_size)
-      key = key.to(device=self._device, dtype=torch.long)
+        start = (self._pointer + 1) % self._max_len
+        idx = (
+            torch.arange(self._max_len, device=self._device) + start
+        ) % self._max_len
+        buf = self._buffer.index_select(0, idx)  # (max_len, batch, ...)
+        return buf.transpose(0, 1)  # (batch, max_len, ...)
 
-    if key.numel() != self._batch_size:
-      raise ValueError(f"Expected {self._batch_size} lags, got {key.numel()}")
+    def reset(
+        self, batch_ids: Sequence[int] | torch.Tensor | None = None
+    ) -> None:
+        """Zero out values and counters for specified batch rows.
 
-    pushes = self._num_pushes.clamp_min(1)
-    valid = torch.minimum(key, pushes - 1).clamp_min(0)
+        Args:
+          batch_ids: Batch indices to reset, or None to reset all.
+        """
+        ids: Sequence[int] | torch.Tensor | slice = (
+            slice(None) if batch_ids is None else batch_ids
+        )
+        self._num_pushes[ids] = 0
+        if self._buffer is not None:
+            self._buffer[:, ids] = 0.0
 
-    idx = torch.remainder(self._pointer - valid, self._max_len)
-    return self._buffer[idx, self._all_indices]
+    def append(self, data: torch.Tensor) -> None:
+        """Append a new frame for all batch elements.
+
+        Args:
+          data: Tensor of shape (batch_size, ...).
+        """
+        if data.shape[0] != self._batch_size:
+            raise ValueError(
+                f"Expected batch size {self._batch_size}, got {data.shape[0]}"
+            )
+
+        data = data.to(self._device)
+
+        if self._buffer is None:
+            self._pointer = -1
+            self._buffer = torch.empty(
+                (self._max_len, *data.shape),
+                dtype=data.dtype,
+                device=self._device,
+            )
+
+        self._pointer = (self._pointer + 1) % self._max_len
+        self._buffer[self._pointer] = data
+
+        # Backfill entire history with first frame for newly initialized batches.
+        # The condition and data are reshaped to broadcast against the buffer's
+        # (max_len, batch_size, ...) shape for data of any rank.
+        is_first_push = self._num_pushes == 0
+        condition = is_first_push.view(
+            1, self._batch_size, *([1] * (data.ndim - 1))
+        )
+        torch.where(
+            condition, data.unsqueeze(0), self._buffer, out=self._buffer
+        )
+
+        self._num_pushes += 1
+
+    def __getitem__(self, key: torch.Tensor | int) -> torch.Tensor:
+        """Retrieve lagged frames per batch (LIFO).
+
+        Args:
+          key: Per-batch lags (Tensor) or shared lag (int). Shape (batch_size,) or scalar.
+        """
+        if self._buffer is None:
+            raise RuntimeError("Buffer not initialized. Call append() first.")
+
+        if isinstance(key, int):
+            key = torch.full(
+                (self._batch_size,), key, dtype=torch.long, device=self._device
+            )
+        else:
+            if key.ndim == 0:
+                key = key.expand(self._batch_size)
+            key = key.to(device=self._device, dtype=torch.long)
+
+        if key.numel() != self._batch_size:
+            raise ValueError(
+                f"Expected {self._batch_size} lags, got {key.numel()}"
+            )
+
+        pushes = self._num_pushes.clamp_min(1)
+        valid = torch.minimum(key, pushes - 1).clamp_min(0)
+
+        idx = torch.remainder(self._pointer - valid, self._max_len)
+        return self._buffer[idx, self._all_indices]

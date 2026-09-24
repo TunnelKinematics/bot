@@ -4,8 +4,8 @@ from rclpy.node import Node
 
 class SimNode(Node):
     def __init__(self):
-        super().__init__('sim_node')
-        self.get_logger().info('sim_node started (stub)')
+        super().__init__("sim_node")
+        self.get_logger().info("sim_node started (stub)")
 
 
 def main():
@@ -20,5 +20,5 @@ def main():
         rclpy.try_shutdown()
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

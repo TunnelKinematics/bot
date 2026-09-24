@@ -88,7 +88,13 @@ target-version = "py310"
 
 [tool.ruff.lint]
 select = ["E", "F", "W", "I", "UP", "B", "SIM", "N"]
-ignore = ["N806", "N803", "N802"]  # T_world_optical, K, ...: math naming
+ignore = [
+    "E501",  # line length is the formatter's job; long comments/strings are ok
+    "N806", "N803", "N802",  # T_world_optical, K, ...: math naming
+]
 
 [tool.ruff.lint.per-file-ignores]
 "scripts/*" = ["E402"]  # argparse before the rest
+# mjlab reward/event terms are callable classes named like functions.
+"training/src/mjlab/**/mdp/*.py" = ["N801"]
+"training/tests/*" = ["N801"]

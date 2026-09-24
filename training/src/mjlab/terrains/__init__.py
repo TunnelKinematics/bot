@@ -1,52 +1,60 @@
 from mjlab.terrains.heightfield_terrains import (
-  HfDiscreteObstaclesTerrainCfg as HfDiscreteObstaclesTerrainCfg,
+    HfDiscreteObstaclesTerrainCfg as HfDiscreteObstaclesTerrainCfg,
 )
 from mjlab.terrains.heightfield_terrains import (
-  HfPerlinNoiseTerrainCfg as HfPerlinNoiseTerrainCfg,
+    HfPerlinNoiseTerrainCfg as HfPerlinNoiseTerrainCfg,
 )
 from mjlab.terrains.heightfield_terrains import (
-  HfPyramidSlopedTerrainCfg as HfPyramidSlopedTerrainCfg,
+    HfPyramidSlopedTerrainCfg as HfPyramidSlopedTerrainCfg,
 )
 from mjlab.terrains.heightfield_terrains import (
-  HfRandomUniformTerrainCfg as HfRandomUniformTerrainCfg,
+    HfRandomUniformTerrainCfg as HfRandomUniformTerrainCfg,
 )
-from mjlab.terrains.heightfield_terrains import HfWaveTerrainCfg as HfWaveTerrainCfg
-from mjlab.terrains.primitive_terrains import BoxFlatTerrainCfg as BoxFlatTerrainCfg
-from mjlab.terrains.primitive_terrains import (
-  BoxInvertedPyramidStairsTerrainCfg as BoxInvertedPyramidStairsTerrainCfg,
+from mjlab.terrains.heightfield_terrains import (
+    HfWaveTerrainCfg as HfWaveTerrainCfg,
 )
 from mjlab.terrains.primitive_terrains import (
-  BoxNarrowBeamsTerrainCfg as BoxNarrowBeamsTerrainCfg,
+    BoxFlatTerrainCfg as BoxFlatTerrainCfg,
 )
 from mjlab.terrains.primitive_terrains import (
-  BoxNestedRingsTerrainCfg as BoxNestedRingsTerrainCfg,
+    BoxInvertedPyramidStairsTerrainCfg as BoxInvertedPyramidStairsTerrainCfg,
 )
 from mjlab.terrains.primitive_terrains import (
-  BoxOpenStairsTerrainCfg as BoxOpenStairsTerrainCfg,
+    BoxNarrowBeamsTerrainCfg as BoxNarrowBeamsTerrainCfg,
 )
 from mjlab.terrains.primitive_terrains import (
-  BoxPyramidStairsTerrainCfg as BoxPyramidStairsTerrainCfg,
+    BoxNestedRingsTerrainCfg as BoxNestedRingsTerrainCfg,
 )
 from mjlab.terrains.primitive_terrains import (
-  BoxRandomGridTerrainCfg as BoxRandomGridTerrainCfg,
+    BoxOpenStairsTerrainCfg as BoxOpenStairsTerrainCfg,
 )
 from mjlab.terrains.primitive_terrains import (
-  BoxRandomSpreadTerrainCfg as BoxRandomSpreadTerrainCfg,
+    BoxPyramidStairsTerrainCfg as BoxPyramidStairsTerrainCfg,
 )
 from mjlab.terrains.primitive_terrains import (
-  BoxRandomStairsTerrainCfg as BoxRandomStairsTerrainCfg,
+    BoxRandomGridTerrainCfg as BoxRandomGridTerrainCfg,
 )
 from mjlab.terrains.primitive_terrains import (
-  BoxSteppingStonesTerrainCfg as BoxSteppingStonesTerrainCfg,
+    BoxRandomSpreadTerrainCfg as BoxRandomSpreadTerrainCfg,
 )
 from mjlab.terrains.primitive_terrains import (
-  BoxTiltedGridTerrainCfg as BoxTiltedGridTerrainCfg,
+    BoxRandomStairsTerrainCfg as BoxRandomStairsTerrainCfg,
+)
+from mjlab.terrains.primitive_terrains import (
+    BoxSteppingStonesTerrainCfg as BoxSteppingStonesTerrainCfg,
+)
+from mjlab.terrains.primitive_terrains import (
+    BoxTiltedGridTerrainCfg as BoxTiltedGridTerrainCfg,
 )
 from mjlab.terrains.terrain_entity import TerrainEntity as TerrainEntity
 from mjlab.terrains.terrain_entity import TerrainEntityCfg as TerrainEntityCfg
 from mjlab.terrains.terrain_generator import (
-  FlatPatchSamplingCfg as FlatPatchSamplingCfg,
+    FlatPatchSamplingCfg as FlatPatchSamplingCfg,
 )
 from mjlab.terrains.terrain_generator import SubTerrainCfg as SubTerrainCfg
-from mjlab.terrains.terrain_generator import TerrainGenerator as TerrainGenerator
-from mjlab.terrains.terrain_generator import TerrainGeneratorCfg as TerrainGeneratorCfg
+from mjlab.terrains.terrain_generator import (
+    TerrainGenerator as TerrainGenerator,
+)
+from mjlab.terrains.terrain_generator import (
+    TerrainGeneratorCfg as TerrainGeneratorCfg,
+)
