@@ -1,0 +1,29 @@
+name: bot
+
+services:
+  dev:
+    container_name: bot
+    build:
+      context: .
+      args:
+        USER_UID: ${HOST_UID:-1000}
+        USER_GID: ${HOST_GID:-1000}
+    image: bot-ros:humble
+    working_dir: /ws
+    volumes:
+      - ../src:/ws/src
+      # keep build artifacts out of the host tree
+      - build:/ws/build
+      - install:/ws/install
+      - log:/ws/log
+    ports:
+      - "8765:8765"   # foxglove_bridge
+    environment:
+      - ROS_DOMAIN_ID=${ROS_DOMAIN_ID:-0}
+    stdin_open: true
+    tty: true
+
+volumes:
+  build:
+  install:
+  log:
