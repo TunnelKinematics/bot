@@ -1,0 +1,268 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Bot — Perception</title>
+  <style>
+    :root {
+      color-scheme: light;
+      font-family: Arial, sans-serif;
+      background: #f4f4f1;
+      color: #111;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      height: 100vh;
+      display: grid;
+      grid-template-rows: 38px minmax(0, 1fr);
+      gap: 14px;
+      padding: 18px;
+      overflow: hidden;
+    }
+    header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .brand {
+      width: 13px;
+      height: 13px;
+      background: #111;
+    }
+    main {
+      display: grid;
+      grid-template-rows: minmax(150px, 30vh) minmax(0, 1fr);
+      gap: 14px;
+      min-width: 0;
+      min-height: 0;
+    }
+    #cameras {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 14px;
+      min-height: 0;
+    }
+    .panel {
+      position: relative;
+      min-width: 0;
+      min-height: 0;
+      overflow: hidden;
+      border: 1px solid #d9d9d3;
+      border-radius: 3px;
+      background: #fff;
+    }
+    .panel-header {
+      position: absolute;
+      z-index: 2;
+      top: 12px;
+      right: 12px;
+      left: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 12px;
+      font-weight: 400;
+      letter-spacing: .04em;
+    }
+    #cameras .panel-header {
+      color: #fff;
+      text-shadow: 0 1px 3px #000;
+    }
+    .camera {
+      display: block;
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      background: #111;
+    }
+    #viewer {
+      width: 100%;
+      height: 100%;
+      min-width: 0;
+      overflow: hidden;
+    }
+    #status {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      color: #77776f;
+      font-size: 11px;
+      letter-spacing: .04em;
+    }
+    #status::before {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: currentColor;
+      content: "";
+    }
+    @media (max-width: 700px) {
+      body { padding: 10px; gap: 10px; }
+      main, #cameras { gap: 10px; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <span class="brand" aria-label="Bot"></span>
+  </header>
+  <main>
+    <section id="cameras">
+      <div class="panel">
+        <div class="panel-header">Left camera</div>
+        <img id="left" class="camera" alt="Left camera">
+      </div>
+      <div class="panel">
+        <div class="panel-header">Right camera</div>
+        <img id="right" class="camera" alt="Right camera">
+      </div>
+    </section>
+    <section class="panel">
+      <div class="panel-header">
+        <span>Spatial map</span>
+        <span id="status">Connecting</span>
+      </div>
+      <div id="viewer"></div>
+    </section>
+  </main>
+
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/roslib@1/build/roslib.min.js"></script>
+  <script>
+    const host = window.location.hostname;
+    const video = (topic) =>
+      `http://${host}:8081/stream?topic=${encodeURIComponent(topic)}`;
+    document.querySelector("#left").src =
+      video("/zed/zed_node/left/gray/rect/image");
+    document.querySelector("#right").src =
+      video("/zed/zed_node/right/gray/rect/image");
+
+    const container = document.querySelector("#viewer");
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0xfafaf8);
+    const camera = new THREE.PerspectiveCamera(60, 1, 0.02, 100);
+    camera.position.set(3, -3, 2.5);
+    camera.up.set(0, 0, 1);
+    const renderer = new THREE.WebGLRenderer({antialias: true});
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    container.appendChild(renderer.domElement);
+    const controls = new THREE.OrbitControls(camera, renderer.domElement);
+    controls.target.set(0, 0, 0.5);
+    controls.update();
+    scene.add(new THREE.GridHelper(20, 40, 0xa5a59f, 0xe2e2dd)
+      .rotateX(Math.PI / 2));
+    scene.add(new THREE.AxesHelper(0.5));
+
+    const resize = () => {
+      const {clientWidth: width, clientHeight: height} = container;
+      renderer.setSize(width, height, false);
+      camera.aspect = width / Math.max(height, 1);
+      camera.updateProjectionMatrix();
+    };
+    window.addEventListener("resize", resize);
+    resize();
+    const animate = () => {
+      requestAnimationFrame(animate);
+      controls.update();
+      renderer.render(scene, camera);
+    };
+    animate();
+
+    const ros = new ROSLIB.Ros({url: `ws://${host}:9090`});
+    const status = document.querySelector("#status");
+    ros.on("connection", () => {
+      status.textContent = "Live";
+      status.style.color = "#14804a";
+    });
+    ros.on("error", () => {
+      status.textContent = "Connection error";
+      status.style.color = "#b42318";
+    });
+    ros.on("close", () => {
+      status.textContent = "Disconnected";
+      status.style.color = "#77776f";
+    });
+
+    let pathObject;
+    new ROSLIB.Topic({
+      ros,
+      name: "/visual_slam/tracking/slam_path",
+      messageType: "nav_msgs/Path",
+      throttle_rate: 200,
+    }).subscribe((message) => {
+      const positions = new Float32Array(message.poses.length * 3);
+      message.poses.forEach(({pose}, index) => {
+        positions[index * 3] = pose.position.x;
+        positions[index * 3 + 1] = pose.position.y;
+        positions[index * 3 + 2] = pose.position.z;
+      });
+      const geometry = new THREE.BufferGeometry();
+      geometry.setAttribute(
+        "position", new THREE.BufferAttribute(positions, 3)
+      );
+      if (pathObject) {
+        scene.remove(pathObject);
+        pathObject.geometry.dispose();
+      }
+      pathObject = new THREE.Line(
+        geometry,
+        new THREE.LineBasicMaterial({color: 0x111111})
+      );
+      scene.add(pathObject);
+    });
+
+    let cloudObject;
+    const bytes = (data) => {
+      if (typeof data !== "string") return Uint8Array.from(data);
+      const decoded = atob(data);
+      return Uint8Array.from(decoded, (character) => character.charCodeAt(0));
+    };
+    new ROSLIB.Topic({
+      ros,
+      name: "/nvblox_node/tsdf_layer",
+      messageType: "sensor_msgs/PointCloud2",
+      throttle_rate: 500,
+    }).subscribe((message) => {
+      const offsets = Object.fromEntries(
+        message.fields.map((field) => [field.name, field.offset])
+      );
+      if (offsets.x === undefined || offsets.y === undefined ||
+          offsets.z === undefined) return;
+      const data = bytes(message.data);
+      const view = new DataView(data.buffer, data.byteOffset, data.byteLength);
+      const count = message.width * message.height;
+      const stride = Math.max(1, Math.ceil(count / 100000));
+      const positions = new Float32Array(Math.ceil(count / stride) * 3);
+      const littleEndian = !message.is_bigendian;
+      let output = 0;
+      for (let index = 0; index < count; index += stride) {
+        const base = index * message.point_step;
+        const x = view.getFloat32(base + offsets.x, littleEndian);
+        const y = view.getFloat32(base + offsets.y, littleEndian);
+        const z = view.getFloat32(base + offsets.z, littleEndian);
+        if (!Number.isFinite(x + y + z)) continue;
+        positions[output++] = x;
+        positions[output++] = y;
+        positions[output++] = z;
+      }
+      const geometry = new THREE.BufferGeometry();
+      geometry.setAttribute(
+        "position",
+        new THREE.BufferAttribute(positions.subarray(0, output), 3)
+      );
+      if (cloudObject) {
+        scene.remove(cloudObject);
+        cloudObject.geometry.dispose();
+      }
+      cloudObject = new THREE.Points(
+        geometry,
+        new THREE.PointsMaterial({color: 0x7f9688, size: 0.025})
+      );
+      scene.add(cloudObject);
+    });
+  </script>
+</body>
+</html>

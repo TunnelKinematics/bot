@@ -7,7 +7,11 @@
   <maintainer email="ad158@rice.edu">ahitagnied</maintainer>
   <license>Apache-2.0</license>
 
-  <depend>rclpy</depend>
+  <exec_depend>isaac_ros_cuvslam</exec_depend>
+  <exec_depend>launch</exec_depend>
+  <exec_depend>launch_ros</exec_depend>
+  <exec_depend>nvblox_examples_bringup</exec_depend>
+  <exec_depend>rclcpp_components</exec_depend>
 
   <test_depend>ament_copyright</test_depend>
   <test_depend>ament_flake8</test_depend>

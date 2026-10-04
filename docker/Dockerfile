@@ -11,8 +11,9 @@ ENV DEBIAN_FRONTEND=noninteractive
 RUN apt-get update && apt-get install -y --no-install-recommends \
         python3-pip \
         python3-colcon-common-extensions \
-        ros-jazzy-foxglove-bridge \
+        ros-jazzy-rosbridge-server \
         ros-jazzy-rosbag2-storage-mcap \
+        ros-jazzy-web-video-server \
         ros-jazzy-xacro \
         ros-jazzy-robot-state-publisher \
         libegl1 libegl-mesa0 libgl1 libopengl0 libgl1-mesa-dri \

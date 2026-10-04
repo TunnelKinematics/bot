@@ -2,15 +2,17 @@ from glob import glob
 
 from setuptools import find_packages, setup
 
-package_name = 'bot_perception'
+package_name = 'bot_camera'
 
 setup(
     name=package_name,
     version='0.0.0',
     packages=find_packages(exclude=['test']),
     data_files=[
-        ('share/ament_index/resource_index/packages',
-            ['resource/' + package_name]),
+        (
+            'share/ament_index/resource_index/packages',
+            ['resource/' + package_name],
+        ),
         ('share/' + package_name, ['package.xml']),
         ('share/' + package_name + '/launch', glob('launch/*.launch.py')),
     ],
@@ -18,11 +20,7 @@ setup(
     zip_safe=True,
     maintainer='ahitagnied',
     maintainer_email='ad158@rice.edu',
-    description='Stereo SLAM and mapping.',
+    description='Launch configuration for the ZED ROS 2 wrapper.',
     license='Apache-2.0',
-    extras_require={
-        'test': [
-            'pytest',
-        ],
-    },
+    extras_require={'test': ['pytest']},
 )

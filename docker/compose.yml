@@ -11,13 +11,17 @@ services:
     image: bot-ros:jazzy
     working_dir: /ws
     volumes:
-      - ../src:/ws/src
+      - ../ros/src:/ws/src
+      - ../dashboard:/ws/dashboard:ro
+      - ../scripts:/ws/scripts:ro
       # keep build artifacts out of the host tree
       - build:/ws/build
       - install:/ws/install
       - log:/ws/log
     ports:
-      - "8765:8765"   # foxglove_bridge
+      - "8080:8080"   # dashboard
+      - "8081:8081"   # camera streams
+      - "9090:9090"   # rosbridge
     environment:
       - ROS_DOMAIN_ID=${ROS_DOMAIN_ID:-0}
     stdin_open: true

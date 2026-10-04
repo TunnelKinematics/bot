@@ -7,9 +7,9 @@ dist/
 venv/
 
 # ROS2 workspace
-ros_ws/build/
-ros_ws/install/
-ros_ws/log/
+ros/build/
+ros/install/
+ros/log/
 
 # recordings / calibration dumps
 *.svo

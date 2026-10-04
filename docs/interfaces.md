@@ -8,6 +8,7 @@ real implementation) as long as it publishes and subscribes to what is listed he
 | Package          | Role                                                         |
 |------------------|--------------------------------------------------------------|
 | `bot_sim`        | MuJoCo simulation. Stands in for the robot hardware and the camera. |
+| `bot_camera`     | Launch/configuration for the official ZED ROS 2 wrapper      |
 | `bot_perception` | Stereo SLAM (cuVSLAM) and mapping (nvblox)                   |
 | `bot_planning`   | Global path and local control → `/cmd_vel`                   |
 | `bot_locomotion` | `/cmd_vel` → joint commands (the gait controller)            |
@@ -18,13 +19,13 @@ Robot-specific packages (for example `solo12_description`) live on branches.
 ## Data flow
 
 ```
-             /camera/*                /odom, /map
- sim|real ──────────────► perception ────────────► planning
+              /zed/zed_node/*         SLAM + nvblox
+ sim|camera ─────────────► perception ────────────► planning
     ▲                                                  │
     │ /joint_commands                                  │ /cmd_vel
     │                                                  ▼
     └──────────────────── locomotion ◄─────────────────┘
-          /joint_states, /imu ──►
+          /joint_states, /zed/zed_node/imu/data_raw ──►
 ```
 
 ## TF tree
@@ -52,14 +53,18 @@ Conventions follow REP 103 and REP 105:
 |--------------------------------|-------------------------------|---------------|---------------------|----------|
 | `/clock`                       | `rosgraph_msgs/Clock`         | sim           | all (sim only)      | sim step |
 | `/joint_states`                | `sensor_msgs/JointState`      | sim / hw      | locomotion, `robot_state_publisher` | 500 Hz+ |
-| `/imu`                         | `sensor_msgs/Imu`             | sim / hw      | locomotion, perception | 500 Hz+ |
+| `/zed/zed_node/imu/data_raw`   | `sensor_msgs/Imu`             | sim / camera  | locomotion, perception | 400 Hz |
 | `/joint_commands`              | `sensor_msgs/JointState` ¹    | locomotion    | sim / hw            | 500 Hz+  |
-| `/camera/left/image_raw`       | `sensor_msgs/Image`           | sim / camera  | perception          | 30 Hz    |
-| `/camera/right/image_raw`      | `sensor_msgs/Image`           | sim / camera  | perception          | 30 Hz    |
-| `/camera/{left,right}/camera_info` | `sensor_msgs/CameraInfo`  | sim / camera  | perception          | 30 Hz    |
-| `/odom`                        | `nav_msgs/Odometry`           | perception    | planning            | 30 Hz    |
-| `/map`                         | `nav_msgs/OccupancyGrid`      | perception    | planning            | 1–5 Hz   |
-| `/goal_pose`                   | `geometry_msgs/PoseStamped`   | user / Foxglove | planning          | on demand |
+| `/zed/zed_node/left/gray/rect/image` | `sensor_msgs/Image`     | camera        | cuVSLAM            | 30 Hz    |
+| `/zed/zed_node/right/gray/rect/image` | `sensor_msgs/Image`    | camera        | cuVSLAM            | 30 Hz    |
+| `/zed/zed_node/depth/depth_registered` | `sensor_msgs/Image` (`32FC1`, meters) | camera | nvblox | 30 Hz |
+| `/zed/zed_node/{left,right}/camera_info` | `sensor_msgs/CameraInfo` | camera | cuVSLAM | 30 Hz |
+| `/visual_slam/tracking/odometry` | `nav_msgs/Odometry`        | cuVSLAM       | planning           | 30 Hz    |
+| `/visual_slam/tracking/slam_path` | `nav_msgs/Path`           | cuVSLAM       | dashboard          | updates  |
+| `/visual_slam/vis/landmarks_cloud` | `sensor_msgs/PointCloud2` | cuVSLAM      | dashboard          | updates  |
+| `/nvblox_node/mesh`            | `nvblox_msgs/Mesh`            | nvblox        | visualization      | updates  |
+| `/nvblox_node/tsdf_layer`      | `sensor_msgs/PointCloud2`     | nvblox        | dashboard          | updates  |
+| `/goal_pose`                   | `geometry_msgs/PoseStamped`   | user          | planning           | on demand |
 | `/plan`                        | `nav_msgs/Path`               | planning      | viz, recording      | 1 Hz     |
 | `/cmd_vel`                     | `geometry_msgs/Twist`         | planning      | locomotion          | 20–50 Hz |
 
@@ -76,5 +81,12 @@ this topic moves to a custom `bot_msgs/JointCommand`.
 - With `sim:=true`, every node sets `use_sim_time:=true` and `bot_sim` publishes `/clock`.
 - `bot_sim` loads its model from the `model_path` parameter (MJCF or URDF), so it has no
   robot-specific code.
-- The real-hardware node (later, on the Jetson) must publish and subscribe to exactly the
-  same topics as `bot_sim`.
+- The real camera and hardware nodes must collectively publish and subscribe
+  to the same topics as `bot_sim`.
+
+## Live visualization
+
+Run `./scripts/start_live.sh` on the Jetson. It starts the ZED 2i, cuVSLAM,
+nvblox, the browser bridges, and a dashboard server, then prints a Tailscale
+URL such as `http://100.x.y.z:8080`. The dashboard shows both rectified camera
+feeds above a large live trajectory and TSDF point-cloud view.
