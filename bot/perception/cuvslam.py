@@ -49,7 +49,7 @@ class Cuvslam:
     def __init__(
         self,
         calibs: list[StereoCalibration],
-        imu_hz: float = 200,
+        imu_hz: float | None = None,
         keyframe_dist: float = 0.1,
         keyframe_angle: float = np.radians(10),
         planar: bool = False,
@@ -57,11 +57,15 @@ class Cuvslam:
     ):
         cameras, imus = [], []
         for c in calibs:
-            i = c.intrinsics
             right = np.eye(4)
             right[0, 3] = c.baseline
             pinhole = vslam.Distortion(vslam.Distortion.Model.Pinhole, [])
-            for T in (c.left_to_rig, c.left_to_rig @ right):
+            camera_calibrations = (
+                c.left_intrinsics,
+                c.right_intrinsics,
+            )
+            transforms = (c.left_to_rig, c.left_to_rig @ right)
+            for i, T in zip(camera_calibrations, transforms, strict=True):
                 cameras.append(
                     vslam.Camera(
                         size=(i.width, i.height),
@@ -77,7 +81,7 @@ class Cuvslam:
                         rig_from_imu=_vslam_pose(
                             c.left_to_rig @ c.imu_to_left
                         ),
-                        frequency=imu_hz,
+                        frequency=imu_hz or c.imu_hz or 200,
                         **IMU_NOISE,
                     )
                 )

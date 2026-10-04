@@ -41,7 +41,8 @@ class StereoCalibration:
     """One rectified stereo pair. A multi-camera rig is a list of these;
     the first pair's left optical frame is the rig frame."""
 
-    intrinsics: Intrinsics  # shared by both rectified views
+    left_intrinsics: Intrinsics
+    right_intrinsics: Intrinsics
     baseline: float  # meters, right camera is +x of left
     imu_to_left: np.ndarray | None = (
         None  # 4x4, IMU frame -> left optical frame; None without an IMU
@@ -50,3 +51,4 @@ class StereoCalibration:
         default_factory=lambda: np.eye(4)
     )  # 4x4, left optical frame -> rig frame (identity for the first pair)
     serial: str = ""  # device id, to tell the pairs of a rig apart
+    imu_hz: float = 0.0

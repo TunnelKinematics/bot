@@ -32,10 +32,10 @@ class StereoCamera(ABC):
 
 
 def create_camera(backend: str, **kwargs) -> StereoCamera:
-    if backend == "oak":
-        from .oak import OakCamera
+    if backend == "zed":
+        from .zed import ZedCamera
 
-        return OakCamera(**kwargs)
+        return ZedCamera(**kwargs)
     if backend == "replay":
         from .replay import ReplayCamera
 

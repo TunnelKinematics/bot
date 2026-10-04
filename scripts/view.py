@@ -1,4 +1,4 @@
-"""Live viewer: python scripts/view.py oak"""
+"""Live viewer: python scripts/view.py zed"""
 
 import sys
 

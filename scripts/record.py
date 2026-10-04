@@ -1,7 +1,7 @@
 """Record a walk for offline SLAM. Press q in the window to stop.
 
-python scripts/record.py oak recordings/walk1             # left/right/depth
-python scripts/record.py oak recordings/walk1 --no-depth
+python scripts/record.py zed recordings/walk1             # left/right/depth
+python scripts/record.py zed recordings/walk1 --no-depth
 
 --no-depth records left/right only (depth from a stereo model later).
 """

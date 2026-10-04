@@ -4,7 +4,8 @@ import pytest
 from bot.common.types import Pose
 from bot.sensors.types import Intrinsics, StereoCalibration, StereoFrame
 
-CALIB = StereoCalibration(Intrinsics(400, 400, 320, 200, 640, 400), 0.075)
+INTRINSICS = Intrinsics(400, 400, 320, 200, 640, 400)
+CALIB = StereoCalibration(INTRINSICS, INTRINSICS, 0.075)
 IDENTITY = Pose(np.zeros(3), np.array([0, 0, 0, 1.0]), 0.0)
 
 
@@ -15,7 +16,9 @@ def wall_frame(distance: float = 1.0, shift: int = 0) -> StereoFrame:
     tex = (127 + 100 * np.sin((u - shift) / 15) * np.cos(v / 20)).astype(
         np.uint8
     )
-    disparity = int(round(CALIB.intrinsics.fx * CALIB.baseline / distance))
+    disparity = int(
+        round(CALIB.left_intrinsics.fx * CALIB.baseline / distance)
+    )
     return StereoFrame(
         tex,
         np.roll(tex, -disparity, 1),

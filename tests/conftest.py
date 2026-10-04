@@ -2,11 +2,16 @@ import pytest
 
 
 @pytest.fixture(scope="session")
-def oak():
-    dai = pytest.importorskip("depthai")
-    if not dai.Device.getAllAvailableDevices():
-        pytest.skip("no OAK device connected")
-    from bot.sensors.oak import OakCamera
+def zed():
+    pytest.importorskip("pyzed.sl")
+    from bot.sensors.zed import ZedCamera
 
-    with OakCamera() as cam:
+    cam = ZedCamera()
+    try:
+        cam.open()
+    except RuntimeError as exc:
+        pytest.skip(str(exc))
+    try:
         yield cam
+    finally:
+        cam.close()

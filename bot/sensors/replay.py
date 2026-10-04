@@ -22,11 +22,13 @@ class ReplayCamera(StereoCamera):
             return np.array(c[k]) if c.get(k) is not None else default
 
         self.calib = StereoCalibration(
-            Intrinsics(**c["intrinsics"]),
-            c["baseline"],
-            arr("imu_to_left", None),
-            arr("left_to_rig", np.eye(4)),
-            c.get("serial", ""),
+            left_intrinsics=Intrinsics(**c["left_intrinsics"]),
+            right_intrinsics=Intrinsics(**c["right_intrinsics"]),
+            baseline=c["baseline"],
+            imu_to_left=arr("imu_to_left", None),
+            left_to_rig=arr("left_to_rig", np.eye(4)),
+            serial=c.get("serial", ""),
+            imu_hz=c.get("imu_hz", 0.0),
         )
         self.timestamps = np.loadtxt(
             self.path / "frames.csv", delimiter=",", skiprows=1, ndmin=2

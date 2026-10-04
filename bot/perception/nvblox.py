@@ -40,12 +40,12 @@ class NvbloxMapper:
         self.calibs = calibs
         self.sensors = [
             Sensor.from_camera(
-                fu=c.intrinsics.fx,
-                fv=c.intrinsics.fy,
-                cu=c.intrinsics.cx,
-                cv=c.intrinsics.cy,
-                width=c.intrinsics.width,
-                height=c.intrinsics.height,
+                fu=c.left_intrinsics.fx,
+                fv=c.left_intrinsics.fy,
+                cu=c.left_intrinsics.cx,
+                cv=c.left_intrinsics.cy,
+                width=c.left_intrinsics.width,
+                height=c.left_intrinsics.height,
             )
             for c in calibs
         ]

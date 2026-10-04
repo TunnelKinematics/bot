@@ -3,7 +3,7 @@ of the rig, in rig order. Press q to stop. Saves trajectory.csv, mesh.ply and
 map.png to --out. --optimize (replay only) uses the loop-closed poses and
 rebuilds the map.
 
-    python scripts/slam.py oak --out out/live
+    python scripts/slam.py zed --out out/live
     python scripts/slam.py recordings/walk1 --out out/walk1 \\
         --optimize --no-show
 """
@@ -63,7 +63,7 @@ ap = argparse.ArgumentParser()
 ap.add_argument(
     "sources",
     nargs="+",
-    help="oak, or recording directories; one per stereo pair",
+    help="zed, or recording directories; one per stereo pair",
 )
 ap.add_argument("--out", type=Path)
 ap.add_argument(
