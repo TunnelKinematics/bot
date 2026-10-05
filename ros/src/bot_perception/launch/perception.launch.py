@@ -23,7 +23,7 @@ def generate_launch_description():
                     "zed_left_camera_frame_optical",
                     "zed_right_camera_frame_optical",
                 ],
-                "base_frame": "zed_camera_center",
+                "base_frame": "zed_camera_link",
                 "num_cameras": 2,
                 "enable_imu_fusion": True,
                 "imu_frame": "zed_imu_link",
@@ -91,7 +91,6 @@ def generate_launch_description():
                 name="layer_streamer_bandwidth_limit_mbps",
                 value=30.0,
             ),
-            SetParameter(name="pose_frame", value="zed_camera_center"),
             SetRemap(
                 src="/zed/zed_node/pose",
                 dst="/visual_slam/tracking/vo_pose",

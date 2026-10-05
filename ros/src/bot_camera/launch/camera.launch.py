@@ -22,7 +22,7 @@ def generate_launch_description():
             'camera_name': 'zed',
             'namespace': '',
             'serial_number': serial_number,
-            'publish_tf': 'true',
+            'publish_tf': 'false',
             'publish_map_tf': 'false',
             'publish_imu_tf': 'true',
             'param_overrides': (
@@ -30,6 +30,7 @@ def generate_launch_description():
                 'video.publish_rgb:=true;'
                 'video.publish_gray:=true;'
                 'depth.depth_mode:=NEURAL_LIGHT;'
+                'depth.depth_stabilization:=0;'
                 'depth.publish_depth_map:=true;'
                 'sensors.publish_imu_raw:=true;'
                 'sensors.publish_cam_imu_transf:=true;'
