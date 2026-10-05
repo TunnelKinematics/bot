@@ -54,6 +54,8 @@ def generate_launch_description():
                 # publish_left_right.
                 'video.publish_left_right': True,
                 'video.publish_gray': True,
+                'depth.min_depth': 0.5,
+                'depth.max_depth': 5.0,
                 'depth.publish_point_cloud': False,
             },
         ],
