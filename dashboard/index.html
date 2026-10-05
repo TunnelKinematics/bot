@@ -246,11 +246,12 @@
     const map = {
       blocks: new Map(),
       blockSize: 0,
+      voxelSize: 0,
       dirty: false,
       seeded: false,
       heightColors: false,
       voxels: null,
-      geometry: new THREE.BoxGeometry(0.048, 0.048, 0.048),
+      geometry: new THREE.BoxGeometry(1, 1, 1),
       material: new THREE.MeshLambertMaterial(),
     };
 
@@ -267,7 +268,7 @@
       const reader = cdr(bytes);
       readHeader(reader);
       map.blockSize = reader.f32();
-      reader.f32();
+      map.voxelSize = reader.f32();
       const keys = Array.from({length: reader.u32()}, () =>
         blockKey(reader.i32(), reader.i32(), reader.i32())
       );
@@ -362,15 +363,16 @@
       }
       allocateVoxels(count);
       const matrices = map.voxels.instanceMatrix.array;
+      const size = map.voxelSize * 0.96;
       const colors = map.voxels.instanceColor.array;
       let index = 0;
       for (const block of map.blocks.values()) {
         for (let i = 0; i < block.positions.length; i += 3, index++) {
           const matrix = index * 16;
           matrices.fill(0, matrix, matrix + 16);
-          matrices[matrix] = 1;
-          matrices[matrix + 5] = 1;
-          matrices[matrix + 10] = 1;
+          matrices[matrix] = size;
+          matrices[matrix + 5] = size;
+          matrices[matrix + 10] = size;
           matrices[matrix + 15] = 1;
           matrices[matrix + 12] = block.positions[i];
           matrices[matrix + 13] = block.positions[i + 1];

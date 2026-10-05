@@ -58,6 +58,7 @@ def generate_launch_description():
             ),
             {
                 "pose_frame": "zed_camera_link",
+                "voxel_size": 0.025,
                 "layer_streamer_bandwidth_limit_mbps": 2.0,
             },
         ],
