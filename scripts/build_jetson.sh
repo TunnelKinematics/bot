@@ -10,6 +10,13 @@ if [[ "$(uname -m)" != "aarch64" ]]; then
   exit 1
 fi
 
+if ! docker info >/dev/null 2>&1; then
+  echo "Your user cannot access Docker." >&2
+  echo "Run: sudo usermod -aG docker \$USER" >&2
+  echo "Then: newgrp docker" >&2
+  exit 1
+fi
+
 if ! docker info --format '{{json .Runtimes}}' | grep -q '"nvidia"'; then
   echo "Docker's NVIDIA runtime is not configured." >&2
   echo "Run: sudo nvidia-ctk runtime configure --runtime=docker" >&2
