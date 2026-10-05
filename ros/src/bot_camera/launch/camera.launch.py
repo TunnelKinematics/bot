@@ -29,7 +29,7 @@ def generate_launch_description():
                 'video.publish_left_right:=true;'
                 'video.publish_rgb:=true;'
                 'video.publish_gray:=true;'
-                'depth.depth_mode:=PERFORMANCE;'
+                'depth.depth_mode:=NEURAL_LIGHT;'
                 'depth.publish_depth_map:=true;'
                 'sensors.publish_imu_raw:=true;'
                 'sensors.publish_cam_imu_transf:=true;'

@@ -58,12 +58,12 @@ Conventions follow REP 103 and REP 105:
 | `/zed/zed_node/left/gray/rect/image` | `sensor_msgs/Image`     | camera        | cuVSLAM            | 30 Hz    |
 | `/zed/zed_node/right/gray/rect/image` | `sensor_msgs/Image`    | camera        | cuVSLAM            | 30 Hz    |
 | `/zed/zed_node/depth/depth_registered` | `sensor_msgs/Image` (`32FC1`, meters) | camera | nvblox | 30 Hz |
-| `/zed/zed_node/{left,right}/camera_info` | `sensor_msgs/CameraInfo` | camera | cuVSLAM | 30 Hz |
+| `/zed/zed_node/{left,right}/gray/rect/camera_info` | `sensor_msgs/CameraInfo` | camera | cuVSLAM | 30 Hz |
 | `/visual_slam/tracking/odometry` | `nav_msgs/Odometry`        | cuVSLAM       | planning           | 30 Hz    |
 | `/visual_slam/tracking/slam_path` | `nav_msgs/Path`           | cuVSLAM       | dashboard          | updates  |
 | `/visual_slam/vis/landmarks_cloud` | `sensor_msgs/PointCloud2` | cuVSLAM      | dashboard          | updates  |
 | `/nvblox_node/mesh`            | `nvblox_msgs/Mesh`            | nvblox        | visualization      | updates  |
-| `/nvblox_node/tsdf_layer`      | `sensor_msgs/PointCloud2`     | nvblox        | dashboard          | updates  |
+| `/nvblox_node/tsdf_layer_marker` | `visualization_msgs/Marker` | nvblox        | dashboard          | updates  |
 | `/goal_pose`                   | `geometry_msgs/PoseStamped`   | user          | planning           | on demand |
 | `/plan`                        | `nav_msgs/Path`               | planning      | viz, recording      | 1 Hz     |
 | `/cmd_vel`                     | `geometry_msgs/Twist`         | planning      | locomotion          | 20–50 Hz |
@@ -86,7 +86,8 @@ this topic moves to a custom `bot_msgs/JointCommand`.
 
 ## Live visualization
 
-Run `./scripts/start_live.sh` on the Jetson. It starts the ZED 2i, cuVSLAM,
-nvblox, the browser bridges, and a dashboard server, then prints a Tailscale
-URL such as `http://100.x.y.z:8080`. The dashboard shows both rectified camera
-feeds above a large live trajectory and TSDF point-cloud view.
+Run `./scripts/start_live.sh` on the Jetson. The first run builds the pinned
+Isaac ROS 3.2, ROS 2 Humble, and ZED 5.3.1 image for JetPack 6. It then starts
+the ZED 2i, GPU-accelerated cuVSLAM and nvblox, browser bridges, and dashboard,
+and prints a Tailscale URL such as `http://100.x.y.z:8080`. Later runs reuse
+the image. Re-run `./scripts/build_jetson.sh` after changing the Dockerfile.

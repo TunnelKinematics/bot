@@ -1,38 +1,45 @@
-# Base is multi-arch: arm64 on Apple Silicon / Jetson, amd64 on x86 hosts.
-FROM ros:jazzy
+ARG BASE_IMAGE=bot-isaac-base:3.2
+FROM ${BASE_IMAGE}
 
-ARG USERNAME=ros
-ARG USER_UID=1000
-ARG USER_GID=1000
-
+SHELL ["/bin/bash", "-c"]
 ENV DEBIAN_FRONTEND=noninteractive
 
-# EGL + Mesa: headless MuJoCo rendering (MUJOCO_GL=egl) for recording videos.
+ARG ZED_SDK_VERSION=5.3.1
+ARG ZED_WRAPPER_VERSION=v5.3.1
+
 RUN apt-get update && apt-get install -y --no-install-recommends \
-        python3-pip \
-        python3-colcon-common-extensions \
-        ros-jazzy-rosbridge-server \
-        ros-jazzy-rosbag2-storage-mcap \
-        ros-jazzy-web-video-server \
-        ros-jazzy-xacro \
-        ros-jazzy-robot-state-publisher \
-        libegl1 libegl-mesa0 libgl1 libopengl0 libgl1-mesa-dri \
+        libpng-dev \
+        libusb-1.0-0-dev \
+        ros-humble-isaac-ros-nvblox \
+        ros-humble-isaac-ros-visual-slam \
+        ros-humble-rosbridge-server \
+        ros-humble-web-video-server \
+        zstd \
     && rm -rf /var/lib/apt/lists/*
 
-# Ubuntu 24.04 marks system Python as externally managed (PEP 668).
-RUN pip3 install --no-cache-dir --break-system-packages mujoco
+# ZED SDK for JetPack 6 / L4T 36.4. CUDA is supplied by the Isaac ROS base.
+RUN wget -q -O /tmp/zed.run \
+        "https://download.stereolabs.com/zedsdk/${ZED_SDK_VERSION}/l4t36.4/jetsons" \
+    && chmod +x /tmp/zed.run \
+    && /tmp/zed.run -- silent skip_tools skip_cuda \
+    && rm /tmp/zed.run
 
-# Non-root user; the base image's 'ubuntu' user holds UID 1000, so drop it first.
-# -o allows reusing an existing GID.
-RUN userdel -r ubuntu \
-    && groupadd -o -g ${USER_GID} ${USERNAME} \
-    && useradd -o -m -s /bin/bash -u ${USER_UID} -g ${USER_GID} ${USERNAME} \
-    && mkdir -p /ws/src /ws/build /ws/install /ws/log \
-    && chown -R ${USER_UID}:${USER_GID} /ws
+# Pin the wrapper to the SDK release instead of building a moving branch.
+RUN git clone --depth 1 --branch "${ZED_WRAPPER_VERSION}" --recurse-submodules \
+        https://github.com/stereolabs/zed-ros2-wrapper.git /opt/zed_ws/src/zed-ros2-wrapper \
+    && source /opt/ros/humble/setup.bash \
+    && rosdep update \
+    && rosdep install \
+        --from-paths /opt/zed_ws/src \
+        --ignore-src \
+        --rosdistro humble \
+        -r -y \
+    && cd /opt/zed_ws \
+    && colcon build \
+        --merge-install \
+        --cmake-args -DCMAKE_BUILD_TYPE=Release \
+        --packages-up-to zed_wrapper \
+    && rm -rf build log /var/lib/apt/lists/*
 
-RUN echo 'source /opt/ros/jazzy/setup.bash' >> /home/${USERNAME}/.bashrc \
-    && echo '[ -f /ws/install/setup.bash ] && source /ws/install/setup.bash' >> /home/${USERNAME}/.bashrc
-
-USER ${USERNAME}
-WORKDIR /ws
-CMD ["bash"]
+WORKDIR /workspace
+CMD ["/workspace/scripts/run_live.sh"]

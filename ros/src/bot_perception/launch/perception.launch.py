@@ -9,7 +9,7 @@ from launch_ros.substitutions import FindPackageShare
 
 def generate_launch_description():
     cuvslam = ComposableNode(
-        package="isaac_ros_cuvslam",
+        package="isaac_ros_visual_slam",
         plugin="nvidia::isaac_ros::visual_slam::VisualSlamNode",
         name="visual_slam_node",
         parameters=[
@@ -25,7 +25,7 @@ def generate_launch_description():
                 ],
                 "base_frame": "zed_camera_center",
                 "num_cameras": 2,
-                "tracking_mode": 1,
+                "enable_imu_fusion": True,
                 "imu_frame": "zed_imu_link",
                 "gyro_noise_density": 0.000244,
                 "gyro_random_walk": 0.000019393,
@@ -42,7 +42,7 @@ def generate_launch_description():
             ),
             (
                 "/visual_slam/camera_info_0",
-                "/zed/zed_node/left/camera_info",
+                "/zed/zed_node/left/gray/rect/camera_info",
             ),
             (
                 "/visual_slam/image_1",
@@ -50,7 +50,7 @@ def generate_launch_description():
             ),
             (
                 "/visual_slam/camera_info_1",
-                "/zed/zed_node/right/camera_info",
+                "/zed/zed_node/right/gray/rect/camera_info",
             ),
             ("/visual_slam/imu", "/zed/zed_node/imu/data_raw"),
         ],
@@ -93,6 +93,14 @@ def generate_launch_description():
             SetRemap(
                 src="/zed/zed_node/pose",
                 dst="/visual_slam/tracking/vo_pose",
+            ),
+            SetRemap(
+                src="/zed/zed_node/rgb/image_rect_color",
+                dst="/zed/zed_node/rgb/color/rect/image",
+            ),
+            SetRemap(
+                src="/zed/zed_node/rgb/camera_info",
+                dst="/zed/zed_node/rgb/color/rect/camera_info",
             ),
             nvblox,
         ]

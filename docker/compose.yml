@@ -6,24 +6,28 @@ services:
     build:
       context: .
       args:
-        USER_UID: ${HOST_UID:-1000}
-        USER_GID: ${HOST_GID:-1000}
-    image: bot-ros:jazzy
-    working_dir: /ws
+        BASE_IMAGE: bot-isaac-base:3.2
+    image: bot-ros:humble
+    runtime: nvidia
+    privileged: true
+    network_mode: host
+    ipc: host
+    pid: host
+    working_dir: /workspace
     volumes:
-      - ../ros/src:/ws/src
-      - ../dashboard:/ws/dashboard:ro
-      - ../scripts:/ws/scripts:ro
-      # keep build artifacts out of the host tree
-      - build:/ws/build
-      - install:/ws/install
-      - log:/ws/log
-    ports:
-      - "8080:8080"   # dashboard
-      - "8081:8081"   # camera streams
-      - "9090:9090"   # rosbridge
+      - ..:/workspace:ro
+      - build:/workspace/ros/build
+      - install:/workspace/ros/install
+      - log:/workspace/ros/log
+      - ../.cache/zed/resources:/usr/local/zed/resources
+      - ../.cache/zed/settings:/usr/local/zed/settings
+      - /dev:/dev
+      - /tmp:/tmp
+      - /usr/lib/aarch64-linux-gnu/tegra:/usr/lib/aarch64-linux-gnu/tegra:ro
     environment:
-      - ROS_DOMAIN_ID=${ROS_DOMAIN_ID:-0}
+      NVIDIA_DRIVER_CAPABILITIES: all
+      NVIDIA_VISIBLE_DEVICES: all
+      ROS_DOMAIN_ID: ${ROS_DOMAIN_ID:-0}
     stdin_open: true
     tty: true
 

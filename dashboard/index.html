@@ -215,43 +215,23 @@
     });
 
     let cloudObject;
-    const bytes = (data) => {
-      if (typeof data !== "string") return Uint8Array.from(data);
-      const decoded = atob(data);
-      return Uint8Array.from(decoded, (character) => character.charCodeAt(0));
-    };
     new ROSLIB.Topic({
       ros,
-      name: "/nvblox_node/tsdf_layer",
-      messageType: "sensor_msgs/PointCloud2",
+      name: "/nvblox_node/tsdf_layer_marker",
+      messageType: "visualization_msgs/Marker",
       throttle_rate: 500,
     }).subscribe((message) => {
-      const offsets = Object.fromEntries(
-        message.fields.map((field) => [field.name, field.offset])
-      );
-      if (offsets.x === undefined || offsets.y === undefined ||
-          offsets.z === undefined) return;
-      const data = bytes(message.data);
-      const view = new DataView(data.buffer, data.byteOffset, data.byteLength);
-      const count = message.width * message.height;
-      const stride = Math.max(1, Math.ceil(count / 100000));
-      const positions = new Float32Array(Math.ceil(count / stride) * 3);
-      const littleEndian = !message.is_bigendian;
-      let output = 0;
-      for (let index = 0; index < count; index += stride) {
-        const base = index * message.point_step;
-        const x = view.getFloat32(base + offsets.x, littleEndian);
-        const y = view.getFloat32(base + offsets.y, littleEndian);
-        const z = view.getFloat32(base + offsets.z, littleEndian);
-        if (!Number.isFinite(x + y + z)) continue;
-        positions[output++] = x;
-        positions[output++] = y;
-        positions[output++] = z;
-      }
+      const points = message.points || [];
+      const positions = new Float32Array(points.length * 3);
+      points.forEach((point, index) => {
+        positions[index * 3] = point.x;
+        positions[index * 3 + 1] = point.y;
+        positions[index * 3 + 2] = point.z;
+      });
       const geometry = new THREE.BufferGeometry();
       geometry.setAttribute(
         "position",
-        new THREE.BufferAttribute(positions.subarray(0, output), 3)
+        new THREE.BufferAttribute(positions, 3)
       );
       if (cloudObject) {
         scene.remove(cloudObject);
@@ -259,7 +239,10 @@
       }
       cloudObject = new THREE.Points(
         geometry,
-        new THREE.PointsMaterial({color: 0x7f9688, size: 0.025})
+        new THREE.PointsMaterial({
+          color: 0x7f9688,
+          size: Math.max(message.scale?.x || 0, 0.025),
+        })
       );
       scene.add(cloudObject);
     });

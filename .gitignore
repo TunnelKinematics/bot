@@ -23,6 +23,7 @@ ros/log/
 .pytest_cache/
 
 # local data
+.cache/
 runs/
 recordings/
 out/
