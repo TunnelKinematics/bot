@@ -17,6 +17,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         zstd \
     && rm -rf /var/lib/apt/lists/*
 
+# Isaac ROS 3.2's generated CMake targets reference NumPy's pre-2.0 header layout.
+RUN python3 -m pip install --no-cache-dir --force-reinstall "numpy==1.26.4"
+
 # ZED SDK for JetPack 6 / L4T 36.4. CUDA is supplied by the Isaac ROS base.
 RUN wget -q -O /tmp/zed.run \
         "https://download.stereolabs.com/zedsdk/${ZED_SDK_VERSION}/l4t36.4/jetsons" \
