@@ -59,5 +59,10 @@ RUN git clone --depth 1 --branch "${ZED_WRAPPER_VERSION}" --recurse-submodules \
         --packages-up-to zed_wrapper \
     && rm -rf build log /var/lib/apt/lists/*
 
+# The ZED NITROS component loads this GXF extension at runtime.
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        ros-humble-gxf-isaac-optimizer \
+    && rm -rf /var/lib/apt/lists/*
+
 WORKDIR /workspace
 CMD ["/workspace/scripts/run_live.sh"]
