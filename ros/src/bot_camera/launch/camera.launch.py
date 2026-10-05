@@ -1,45 +1,69 @@
 from launch import LaunchDescription
-from launch.actions import DeclareLaunchArgument, IncludeLaunchDescription
-from launch.launch_description_sources import PythonLaunchDescriptionSource
-from launch.substitutions import LaunchConfiguration, PathJoinSubstitution
+from launch.actions import DeclareLaunchArgument
+from launch.substitutions import (
+    Command,
+    LaunchConfiguration,
+    PathJoinSubstitution,
+)
+from launch_ros.actions import LoadComposableNodes, Node
+from launch_ros.descriptions import ComposableNode
 from launch_ros.substitutions import FindPackageShare
 
 
 def generate_launch_description():
     serial_number = LaunchConfiguration('serial_number')
-    zed_launch = IncludeLaunchDescription(
-        PythonLaunchDescriptionSource(
-            PathJoinSubstitution(
-                [
-                    FindPackageShare('zed_wrapper'),
-                    'launch',
-                    'zed_camera.launch.py',
-                ]
-            )
-        ),
-        launch_arguments={
-            'camera_model': 'zed2i',
-            'camera_name': 'zed',
-            'namespace': '',
-            'serial_number': serial_number,
-            'publish_tf': 'false',
-            'publish_map_tf': 'false',
-            'publish_imu_tf': 'true',
-            'param_overrides': (
-                'video.publish_left_right:=true;'
-                'video.publish_rgb:=true;'
-                'video.publish_gray:=true;'
-                'depth.depth_mode:=NEURAL_LIGHT;'
-                'depth.depth_stabilization:=0;'
-                'depth.publish_depth_map:=true;'
-                'sensors.publish_imu_raw:=true;'
-                'sensors.publish_cam_imu_transf:=true;'
-                'sensors.sensors_pub_rate:=400.0;'
-                'pos_tracking.pos_tracking_enabled:=false;'
-                'pos_tracking.base_frame:=zed_sdk_base'
-            ),
-        }.items(),
+    container_name = LaunchConfiguration('container_name')
+    zed_config = FindPackageShare('zed_wrapper')
+
+    description = Node(
+        package='robot_state_publisher',
+        executable='robot_state_publisher',
+        namespace='zed',
+        name='zed_state_publisher',
+        output='screen',
+        parameters=[{
+            'robot_description': Command([
+                'xacro ',
+                PathJoinSubstitution(
+                    [zed_config, 'urdf', 'zed_descr.urdf.xacro']
+                ),
+                ' camera_name:=zed camera_model:=zed2i',
+            ]),
+        }],
+        remappings=[('robot_description', 'zed_description')],
     )
+
+    # The ZED wrapper launch always targets a container inside the camera
+    # namespace, so the node is loaded directly to share the NITROS container.
+    zed = ComposableNode(
+        package='zed_components',
+        plugin='stereolabs::ZedCamera',
+        namespace='zed',
+        name='zed_node',
+        parameters=[
+            PathJoinSubstitution([zed_config, 'config', 'common_stereo.yaml']),
+            PathJoinSubstitution([zed_config, 'config', 'zed2i.yaml']),
+            {
+                'general.camera_name': 'zed',
+                'general.camera_model': 'zed2i',
+                'general.serial_number': serial_number,
+                'general.grab_frame_rate': 30,
+                'general.pub_resolution': 'CUSTOM',
+                'general.pub_downscale_factor': 2.0,
+                # With NITROS, left/right gray topics exist only under
+                # publish_left_right.
+                'video.publish_left_right': True,
+                'video.publish_gray': True,
+                # Stabilization would start the ZED positional tracker.
+                'depth.depth_stabilization': 0,
+                'depth.publish_point_cloud': False,
+                'pos_tracking.pos_tracking_enabled': False,
+                'pos_tracking.publish_tf': False,
+                'pos_tracking.publish_map_tf': False,
+            },
+        ],
+    )
+
     return LaunchDescription(
         [
             DeclareLaunchArgument(
@@ -47,6 +71,14 @@ def generate_launch_description():
                 default_value='0',
                 description='ZED serial number; 0 selects the first camera.',
             ),
-            zed_launch,
+            DeclareLaunchArgument(
+                'container_name',
+                description='Component container shared with NITROS consumers.',
+            ),
+            description,
+            LoadComposableNodes(
+                target_container=container_name,
+                composable_node_descriptions=[zed],
+            ),
         ]
     )

@@ -38,12 +38,6 @@
       min-width: 0;
       min-height: 0;
     }
-    #cameras {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 14px;
-      min-height: 0;
-    }
     .panel {
       position: relative;
       min-width: 0;
@@ -66,22 +60,45 @@
       font-weight: 400;
       letter-spacing: .04em;
     }
+    #cameras {
+      background: #111;
+    }
     #cameras .panel-header {
       color: #fff;
       text-shadow: 0 1px 3px #000;
     }
-    .camera {
+    #stereo {
       display: block;
       width: 100%;
       height: 100%;
       object-fit: contain;
-      background: #111;
     }
     #viewer {
       width: 100%;
       height: 100%;
       min-width: 0;
       overflow: hidden;
+    }
+    #viewer canvas {
+      display: block;
+      width: 100%;
+      height: 100%;
+    }
+    .map-controls {
+      display: inline-flex;
+      align-items: center;
+      gap: 14px;
+    }
+    #color-mode {
+      padding: 3px 8px;
+      border: 1px solid #d9d9d3;
+      border-radius: 3px;
+      background: #fff;
+      color: #111;
+      font: inherit;
+      font-size: 11px;
+      letter-spacing: .04em;
+      cursor: pointer;
     }
     #status {
       display: inline-flex;
@@ -100,7 +117,7 @@
     }
     @media (max-width: 700px) {
       body { padding: 10px; gap: 10px; }
-      main, #cameras { gap: 10px; }
+      main { gap: 10px; }
     }
   </style>
 </head>
@@ -109,20 +126,20 @@
     <span class="brand" aria-label="Bot"></span>
   </header>
   <main>
-    <section id="cameras">
-      <div class="panel">
-        <div class="panel-header">Left camera</div>
-        <img id="left" class="camera" alt="Left camera">
+    <section id="cameras" class="panel" aria-label="Left and right cameras">
+      <div class="panel-header">
+        <span>Left camera</span>
+        <span>Right camera</span>
       </div>
-      <div class="panel">
-        <div class="panel-header">Right camera</div>
-        <img id="right" class="camera" alt="Right camera">
-      </div>
+      <img id="stereo" alt="">
     </section>
     <section class="panel">
       <div class="panel-header">
         <span>Spatial map</span>
-        <span id="status">Connecting</span>
+        <span class="map-controls">
+          <button id="color-mode" type="button">Camera</button>
+          <span id="status">Connecting</span>
+        </span>
       </div>
       <div id="viewer"></div>
     </section>
@@ -133,12 +150,14 @@
   <script src="https://cdn.jsdelivr.net/npm/roslib@1/build/roslib.min.js"></script>
   <script>
     const host = window.location.hostname;
-    const video = (topic) =>
-      `http://${host}:8081/stream?topic=${encodeURIComponent(topic)}`;
-    document.querySelector("#left").src =
-      video("/zed/zed_node/left/gray/rect/image");
-    document.querySelector("#right").src =
-      video("/zed/zed_node/right/gray/rect/image");
+
+    const stereo = document.querySelector("#stereo");
+    const streamStereo = () => {
+      stereo.src = `http://${host}:8081/stream` +
+        `?topic=/zed/stereo_preview&quality=70&t=${Date.now()}`;
+    };
+    stereo.addEventListener("error", () => setTimeout(streamStereo, 1000));
+    streamStereo();
 
     const container = document.querySelector("#viewer");
     const scene = new THREE.Scene();
@@ -154,7 +173,6 @@
     controls.update();
     scene.add(new THREE.GridHelper(20, 40, 0xa5a59f, 0xe2e2dd)
       .rotateX(Math.PI / 2));
-    scene.add(new THREE.AxesHelper(0.5));
 
     const resize = () => {
       const {clientWidth: width, clientHeight: height} = container;
@@ -164,14 +182,9 @@
     };
     window.addEventListener("resize", resize);
     resize();
-    const animate = () => {
-      requestAnimationFrame(animate);
-      controls.update();
-      renderer.render(scene, camera);
-    };
-    animate();
 
-    const ros = new ROSLIB.Ros({url: `ws://${host}:9090`});
+    const rosUrl = `ws://${host}:9090`;
+    const ros = new ROSLIB.Ros({url: rosUrl});
     const status = document.querySelector("#status");
     ros.on("connection", () => {
       status.textContent = "Live";
@@ -184,68 +197,301 @@
     ros.on("close", () => {
       status.textContent = "Disconnected";
       status.style.color = "#77776f";
+      setTimeout(() => ros.connect(rosUrl), 2000);
     });
 
-    let pathObject;
-    new ROSLIB.Topic({
-      ros,
-      name: "/visual_slam/tracking/slam_path",
-      messageType: "nav_msgs/Path",
-      throttle_rate: 200,
-    }).subscribe((message) => {
-      const positions = new Float32Array(message.poses.length * 3);
-      message.poses.forEach(({pose}, index) => {
-        positions[index * 3] = pose.position.x;
-        positions[index * 3 + 1] = pose.position.y;
-        positions[index * 3 + 2] = pose.position.z;
+    // cbor-raw delivers serialized CDR; alignment is relative to the
+    // 4-byte encapsulation header.
+    const cdr = (bytes) => {
+      const view = new DataView(
+        bytes.buffer, bytes.byteOffset, bytes.byteLength
+      );
+      let offset = 4;
+      const align = (size) => {
+        offset += (size - ((offset - 4) % size)) % size;
+      };
+      const read = (size, get) => {
+        align(size);
+        const value = get.call(view, offset, true);
+        offset += size;
+        return value;
+      };
+      return {
+        bool: () => view.getUint8(offset++) !== 0,
+        i32: () => read(4, view.getInt32),
+        u32: () => read(4, view.getUint32),
+        f32: () => read(4, view.getFloat32),
+        f64: () => read(8, view.getFloat64),
+        skip(count, read) {
+          for (let i = 0; i < count; i++) read();
+        },
+        skipString() {
+          const length = read(4, view.getUint32);
+          offset += length;
+        },
+      };
+    };
+
+    const readHeader = (reader) => {
+      reader.i32();
+      reader.u32();
+      reader.skipString();
+    };
+
+    scene.add(new THREE.HemisphereLight(0xffffff, 0x8a8a80, 0.85));
+    const sun = new THREE.DirectionalLight(0xffffff, 0.55);
+    sun.position.set(2, -3, 5);
+    scene.add(sun);
+
+    const map = {
+      blocks: new Map(),
+      blockSize: 0,
+      dirty: false,
+      seeded: false,
+      heightColors: false,
+      voxels: null,
+      geometry: new THREE.BoxGeometry(0.048, 0.048, 0.048),
+      material: new THREE.MeshLambertMaterial(),
+    };
+
+    const colorMode = document.querySelector("#color-mode");
+    colorMode.addEventListener("click", () => {
+      map.heightColors = !map.heightColors;
+      colorMode.textContent = map.heightColors ? "Height" : "Camera";
+      map.dirty = true;
+    });
+
+    const blockKey = (x, y, z) => `${x},${y},${z}`;
+
+    const readLayer = (bytes) => {
+      const reader = cdr(bytes);
+      readHeader(reader);
+      map.blockSize = reader.f32();
+      reader.f32();
+      const keys = Array.from({length: reader.u32()}, () =>
+        blockKey(reader.i32(), reader.i32(), reader.i32())
+      );
+      reader.u32();
+      const updates = keys.map((key) => {
+        const count = reader.u32();
+        const positions = new Float32Array(count * 3);
+        for (let i = 0; i < positions.length; i++) positions[i] = reader.f32();
+        const colors = new Float32Array(count * 3).fill(0.55);
+        const colorCount = reader.u32();
+        for (let i = 0; i < colorCount; i++) {
+          colors[i * 3] = reader.f32();
+          colors[i * 3 + 1] = reader.f32();
+          colors[i * 3 + 2] = reader.f32();
+          reader.f32();
+        }
+        return [key, {positions, colors}];
       });
-      const geometry = new THREE.BufferGeometry();
-      geometry.setAttribute(
-        "position", new THREE.BufferAttribute(positions, 3)
-      );
-      if (pathObject) {
-        scene.remove(pathObject);
-        pathObject.geometry.dispose();
+      if (reader.bool()) map.blocks.clear();
+      for (const [key, block] of updates) {
+        if (block.positions.length) map.blocks.set(key, block);
+        else map.blocks.delete(key);
       }
-      pathObject = new THREE.Line(
-        geometry,
-        new THREE.LineBasicMaterial({color: 0x111111})
-      );
-      scene.add(pathObject);
-    });
+      map.dirty = true;
+    };
 
-    let cloudObject;
-    new ROSLIB.Topic({
-      ros,
-      name: "/nvblox_node/tsdf_layer_marker",
-      messageType: "visualization_msgs/Marker",
-      throttle_rate: 500,
-    }).subscribe((message) => {
-      const points = message.points || [];
-      const positions = new Float32Array(points.length * 3);
+    const readMarker = (bytes) => {
+      const reader = cdr(bytes);
+      readHeader(reader);
+      reader.skipString();
+      reader.skip(3, reader.i32);
+      reader.skip(10, reader.f64);
+      reader.skip(4, reader.f32);
+      reader.i32();
+      reader.u32();
+      reader.bool();
+      const points = Array.from({length: reader.u32()}, () =>
+        [reader.f64(), reader.f64(), reader.f64()]
+      );
+      const colors = Array.from({length: reader.u32()}, () => {
+        const color = [reader.f32(), reader.f32(), reader.f32()];
+        reader.f32();
+        return color;
+      });
+      const seeded = new Map();
       points.forEach((point, index) => {
-        positions[index * 3] = point.x;
-        positions[index * 3 + 1] = point.y;
-        positions[index * 3 + 2] = point.z;
+        const key = blockKey(
+          ...point.map((value) => Math.floor(value / map.blockSize))
+        );
+        if (map.blocks.has(key)) return;
+        if (!seeded.has(key)) seeded.set(key, {positions: [], colors: []});
+        seeded.get(key).positions.push(...point);
+        seeded.get(key).colors.push(...(colors[index] || [0.55, 0.55, 0.55]));
       });
-      const geometry = new THREE.BufferGeometry();
-      geometry.setAttribute(
-        "position",
-        new THREE.BufferAttribute(positions, 3)
-      );
-      if (cloudObject) {
-        scene.remove(cloudObject);
-        cloudObject.geometry.dispose();
+      for (const [key, block] of seeded) {
+        map.blocks.set(key, {
+          positions: new Float32Array(block.positions),
+          colors: new Float32Array(block.colors),
+        });
       }
-      cloudObject = new THREE.Points(
-        geometry,
-        new THREE.PointsMaterial({
-          color: 0x7f9688,
-          size: Math.max(message.scale?.x || 0, 0.025),
-        })
+      map.dirty = true;
+    };
+
+    const allocateVoxels = (count) => {
+      if (map.voxels && map.voxels.instanceMatrix.count >= count) return;
+      if (map.voxels) {
+        scene.remove(map.voxels);
+        map.voxels.dispose();
+      }
+      const capacity = 2 ** Math.ceil(Math.log2(Math.max(count, 4096)));
+      map.voxels = new THREE.InstancedMesh(
+        map.geometry, map.material, capacity
       );
-      scene.add(cloudObject);
+      map.voxels.instanceColor = new THREE.InstancedBufferAttribute(
+        new Float32Array(capacity * 3), 3
+      );
+      map.voxels.frustumCulled = false;
+      scene.add(map.voxels);
+    };
+
+    const heightColor = new THREE.Color();
+    const rebuildMap = () => {
+      let count = 0;
+      let low = Infinity;
+      let high = -Infinity;
+      for (const {positions} of map.blocks.values()) {
+        count += positions.length / 3;
+        for (let i = 2; i < positions.length; i += 3) {
+          low = Math.min(low, positions[i]);
+          high = Math.max(high, positions[i]);
+        }
+      }
+      allocateVoxels(count);
+      const matrices = map.voxels.instanceMatrix.array;
+      const colors = map.voxels.instanceColor.array;
+      let index = 0;
+      for (const block of map.blocks.values()) {
+        for (let i = 0; i < block.positions.length; i += 3, index++) {
+          const matrix = index * 16;
+          matrices.fill(0, matrix, matrix + 16);
+          matrices[matrix] = 1;
+          matrices[matrix + 5] = 1;
+          matrices[matrix + 10] = 1;
+          matrices[matrix + 15] = 1;
+          matrices[matrix + 12] = block.positions[i];
+          matrices[matrix + 13] = block.positions[i + 1];
+          matrices[matrix + 14] = block.positions[i + 2];
+          if (map.heightColors) {
+            const t = (block.positions[i + 2] - low) / (high - low || 1);
+            heightColor.setHSL(0.7 * (1 - t), 0.7, 0.52);
+            heightColor.toArray(colors, index * 3);
+          } else {
+            colors.set(block.colors.subarray(i, i + 3), index * 3);
+          }
+        }
+      }
+      map.voxels.count = count;
+      map.voxels.instanceMatrix.needsUpdate = true;
+      map.voxels.instanceColor.needsUpdate = true;
+      map.dirty = false;
+    };
+
+    // The layer topic streams only changed blocks, so a full marker
+    // snapshot fills in everything mapped before this page connected.
+    const seedMap = () => {
+      const marker = new ROSLIB.Topic({
+        ros,
+        name: "/nvblox_node/color_layer_marker",
+        messageType: "visualization_msgs/Marker",
+        compression: "cbor-raw",
+      });
+      marker.subscribe(({bytes}) => {
+        marker.unsubscribe();
+        readMarker(bytes);
+      });
+    };
+
+    new ROSLIB.Topic({
+      ros,
+      name: "/nvblox_node/color_layer",
+      messageType: "nvblox_msgs/VoxelBlockLayer",
+      compression: "cbor-raw",
+    }).subscribe(({bytes}) => {
+      readLayer(bytes);
+      if (!map.seeded) {
+        map.seeded = true;
+        seedMap();
+      }
     });
+
+    const trajectory = {
+      positions: new Float32Array(3 * 4096),
+      count: 0,
+      geometry: new THREE.BufferGeometry(),
+    };
+    trajectory.geometry.setAttribute(
+      "position", new THREE.BufferAttribute(trajectory.positions, 3)
+    );
+    trajectory.geometry.setDrawRange(0, 0);
+    scene.add(new THREE.Line(
+      trajectory.geometry,
+      new THREE.LineBasicMaterial({color: 0x111111})
+    ));
+    const body = new THREE.AxesHelper(0.3);
+    scene.add(body);
+
+    const appendTrajectory = ({x, y, z}) => {
+      const {positions, count} = trajectory;
+      if (count) {
+        const last = (count - 1) * 3;
+        const moved = Math.hypot(
+          x - positions[last], y - positions[last + 1], z - positions[last + 2]
+        );
+        if (moved < 0.01) return;
+      }
+      if ((count + 1) * 3 > positions.length) {
+        trajectory.positions = new Float32Array(positions.length * 2);
+        trajectory.positions.set(positions);
+        trajectory.geometry.setAttribute(
+          "position", new THREE.BufferAttribute(trajectory.positions, 3)
+        );
+      }
+      trajectory.positions.set([x, y, z], count * 3);
+      trajectory.count += 1;
+      trajectory.geometry.setDrawRange(0, trajectory.count);
+      trajectory.geometry.attributes.position.needsUpdate = true;
+      trajectory.geometry.computeBoundingSphere();
+    };
+
+    new ROSLIB.Topic({
+      ros,
+      name: "/visual_slam/tracking/vo_pose",
+      messageType: "geometry_msgs/PoseStamped",
+      throttle_rate: 50,
+    }).subscribe(({pose: {position, orientation}}) => {
+      if (!trajectory.count) {
+        controls.target.set(position.x, position.y, position.z);
+        camera.position.set(
+          position.x + 3, position.y - 3, position.z + 2.5
+        );
+      }
+      appendTrajectory(position);
+      body.position.set(position.x, position.y, position.z);
+      body.quaternion.set(
+        orientation.x, orientation.y, orientation.z, orientation.w
+      );
+    });
+
+    // A reconnect usually means the robot restarted with a fresh map.
+    ros.on("connection", () => {
+      map.blocks.clear();
+      map.seeded = false;
+      map.dirty = true;
+      trajectory.count = 0;
+      trajectory.geometry.setDrawRange(0, 0);
+    });
+
+    const animate = () => {
+      requestAnimationFrame(animate);
+      if (map.dirty) rebuildMap();
+      controls.update();
+      renderer.render(scene, camera);
+    };
+    animate();
   </script>
 </body>
 </html>

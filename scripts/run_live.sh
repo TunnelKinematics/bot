@@ -10,9 +10,7 @@ cd "$ROOT/ros"
 colcon build --symlink-install
 source install/setup.bash
 
-python3 -m http.server 8080 \
-  --bind 0.0.0.0 \
-  --directory "$ROOT/dashboard" \
+python3 "$ROOT/scripts/serve_dashboard.py" 8080 "$ROOT/dashboard" \
   >/tmp/bot-dashboard.log 2>&1 &
 HTTP_PID=$!
 

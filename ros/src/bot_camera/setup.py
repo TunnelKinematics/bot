@@ -20,7 +20,12 @@ setup(
     zip_safe=True,
     maintainer='ahitagnied',
     maintainer_email='ad158@rice.edu',
-    description='Launch configuration for the ZED ROS 2 wrapper.',
+    description='ZED camera launch and stereo preview.',
     license='Apache-2.0',
     extras_require={'test': ['pytest']},
+    entry_points={
+        'console_scripts': [
+            'stereo_preview = bot_camera.stereo_preview:main',
+        ],
+    },
 )

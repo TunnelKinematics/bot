@@ -1,8 +1,7 @@
 from launch import LaunchDescription
-from launch.actions import GroupAction, IncludeLaunchDescription
-from launch.launch_description_sources import PythonLaunchDescriptionSource
-from launch.substitutions import PathJoinSubstitution
-from launch_ros.actions import ComposableNodeContainer, SetParameter, SetRemap
+from launch.actions import DeclareLaunchArgument
+from launch.substitutions import LaunchConfiguration, PathJoinSubstitution
+from launch_ros.actions import ComposableNodeContainer
 from launch_ros.descriptions import ComposableNode
 from launch_ros.substitutions import FindPackageShare
 
@@ -16,22 +15,12 @@ def generate_launch_description():
             {
                 "rectified_images": True,
                 "enable_image_denoising": False,
-                "enable_slam_visualization": True,
-                "enable_landmarks_view": True,
-                "enable_observations_view": False,
                 "camera_optical_frames": [
                     "zed_left_camera_frame_optical",
                     "zed_right_camera_frame_optical",
                 ],
                 "base_frame": "zed_camera_link",
                 "num_cameras": 2,
-                "enable_imu_fusion": True,
-                "imu_frame": "zed_imu_link",
-                "gyro_noise_density": 0.000244,
-                "gyro_random_walk": 0.000019393,
-                "accel_noise_density": 0.001862,
-                "accel_random_walk": 0.003,
-                "calibration_frequency": 400.0,
                 "image_jitter_threshold_ms": 35.0,
             }
         ],
@@ -52,61 +41,52 @@ def generate_launch_description():
                 "/visual_slam/camera_info_1",
                 "/zed/zed_node/right/gray/rect/camera_info",
             ),
-            ("/visual_slam/imu", "/zed/zed_node/imu/data_raw"),
         ],
     )
-    cuvslam_container = ComposableNodeContainer(
+
+    nvblox_config = PathJoinSubstitution(
+        [FindPackageShare("nvblox_examples_bringup"), "config", "nvblox"]
+    )
+    nvblox = ComposableNode(
+        package="nvblox_ros",
+        plugin="nvblox::NvbloxNode",
+        name="nvblox_node",
+        parameters=[
+            PathJoinSubstitution([nvblox_config, "nvblox_base.yaml"]),
+            PathJoinSubstitution(
+                [nvblox_config, "specializations", "nvblox_zed.yaml"]
+            ),
+            {
+                "pose_frame": "zed_camera_link",
+                "layer_streamer_bandwidth_limit_mbps": 2.0,
+            },
+        ],
+        remappings=[
+            ("camera_0/depth/image", "/zed/zed_node/depth/depth_registered"),
+            ("camera_0/depth/camera_info", "/zed/zed_node/depth/camera_info"),
+            ("camera_0/color/image", "/zed/zed_node/rgb/color/rect/image"),
+            (
+                "camera_0/color/camera_info",
+                "/zed/zed_node/rgb/color/rect/camera_info",
+            ),
+        ],
+    )
+
+    container = ComposableNodeContainer(
         package="rclcpp_components",
         executable="component_container_mt",
-        name="cuvslam_container",
+        name=LaunchConfiguration("container_name"),
         namespace="",
         output="screen",
-        composable_node_descriptions=[cuvslam],
-    )
-
-    nvblox = IncludeLaunchDescription(
-        PythonLaunchDescriptionSource(
-            PathJoinSubstitution(
-                [
-                    FindPackageShare("nvblox_examples_bringup"),
-                    "launch",
-                    "perception",
-                    "nvblox.launch.py",
-                ]
-            )
-        ),
-        launch_arguments={
-            "camera": "zed2",
-            "mode": "static",
-            "num_cameras": "1",
-            "lidar": "False",
-            "container_name": "cuvslam_container",
-            "run_standalone": "False",
-        }.items(),
-    )
-
-    nvblox_with_cuvslam_pose = GroupAction(
-        [
-            SetParameter(
-                name="layer_streamer_bandwidth_limit_mbps",
-                value=30.0,
-            ),
-            SetParameter(name="pose_frame", value="zed_camera_link"),
-            SetRemap(
-                src="/zed/zed_node/pose",
-                dst="/visual_slam/tracking/vo_pose",
-            ),
-            SetRemap(
-                src="/zed/zed_node/rgb/image_rect_color",
-                dst="/zed/zed_node/rgb/color/rect/image",
-            ),
-            SetRemap(
-                src="/zed/zed_node/rgb/camera_info",
-                dst="/zed/zed_node/rgb/color/rect/camera_info",
-            ),
-            nvblox,
-        ]
+        composable_node_descriptions=[cuvslam, nvblox],
     )
     return LaunchDescription(
-        [cuvslam_container, nvblox_with_cuvslam_pose]
+        [
+            DeclareLaunchArgument(
+                "container_name",
+                default_value="perception_container",
+                description="NITROS container that sensors load into.",
+            ),
+            container,
+        ]
     )

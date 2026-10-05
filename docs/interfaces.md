@@ -8,7 +8,7 @@ real implementation) as long as it publishes and subscribes to what is listed he
 | Package          | Role                                                         |
 |------------------|--------------------------------------------------------------|
 | `bot_sim`        | MuJoCo simulation. Stands in for the robot hardware and the camera. |
-| `bot_camera`     | Launch/configuration for the official ZED ROS 2 wrapper      |
+| `bot_camera`     | ZED 2i launch and the dashboard's stereo preview             |
 | `bot_perception` | Stereo SLAM (cuVSLAM) and mapping (nvblox)                   |
 | `bot_planning`   | Global path and local control → `/cmd_vel`                   |
 | `bot_locomotion` | `/cmd_vel` → joint commands (the gait controller)            |
@@ -25,7 +25,7 @@ Robot-specific packages (for example `solo12_description`) live on branches.
     │ /joint_commands                                  │ /cmd_vel
     │                                                  ▼
     └──────────────────── locomotion ◄─────────────────┘
-          /joint_states, /zed/zed_node/imu/data_raw ──►
+          /joint_states, /zed/zed_node/imu/data ──►
 ```
 
 ## TF tree
@@ -53,17 +53,18 @@ Conventions follow REP 103 and REP 105:
 |--------------------------------|-------------------------------|---------------|---------------------|----------|
 | `/clock`                       | `rosgraph_msgs/Clock`         | sim           | all (sim only)      | sim step |
 | `/joint_states`                | `sensor_msgs/JointState`      | sim / hw      | locomotion, `robot_state_publisher` | 500 Hz+ |
-| `/zed/zed_node/imu/data_raw`   | `sensor_msgs/Imu`             | sim / camera  | locomotion, perception | 400 Hz |
+| `/zed/zed_node/imu/data`       | `sensor_msgs/Imu`             | sim / camera  | locomotion          | 100 Hz   |
 | `/joint_commands`              | `sensor_msgs/JointState` ¹    | locomotion    | sim / hw            | 500 Hz+  |
-| `/zed/zed_node/left/gray/rect/image` | `sensor_msgs/Image`     | camera        | cuVSLAM            | 30 Hz    |
-| `/zed/zed_node/right/gray/rect/image` | `sensor_msgs/Image`    | camera        | cuVSLAM            | 30 Hz    |
+| `/zed/zed_node/left/gray/rect/image` | `sensor_msgs/Image`     | camera        | cuVSLAM, stereo preview | 30 Hz |
+| `/zed/zed_node/right/gray/rect/image` | `sensor_msgs/Image`    | camera        | cuVSLAM, stereo preview | 30 Hz |
+| `/zed/stereo_preview`          | `sensor_msgs/Image` (`mono8`, left \| right) | stereo preview | dashboard | 15 Hz |
 | `/zed/zed_node/depth/depth_registered` | `sensor_msgs/Image` (`32FC1`, meters) | camera | nvblox | 30 Hz |
 | `/zed/zed_node/{left,right}/gray/rect/camera_info` | `sensor_msgs/CameraInfo` | camera | cuVSLAM | 30 Hz |
 | `/visual_slam/tracking/odometry` | `nav_msgs/Odometry`        | cuVSLAM       | planning           | 30 Hz    |
-| `/visual_slam/tracking/slam_path` | `nav_msgs/Path`           | cuVSLAM       | dashboard          | updates  |
-| `/visual_slam/vis/landmarks_cloud` | `sensor_msgs/PointCloud2` | cuVSLAM      | dashboard          | updates  |
+| `/visual_slam/tracking/vo_pose` | `geometry_msgs/PoseStamped` | cuVSLAM       | dashboard          | 30 Hz    |
 | `/nvblox_node/mesh`            | `nvblox_msgs/Mesh`            | nvblox        | visualization      | updates  |
-| `/nvblox_node/tsdf_layer_marker` | `visualization_msgs/Marker` | nvblox        | dashboard          | updates  |
+| `/nvblox_node/color_layer`     | `nvblox_msgs/VoxelBlockLayer` | nvblox        | dashboard          | changed blocks |
+| `/nvblox_node/color_layer_marker` | `visualization_msgs/Marker` | nvblox      | dashboard (initial snapshot) | 5 Hz |
 | `/goal_pose`                   | `geometry_msgs/PoseStamped`   | user          | planning           | on demand |
 | `/plan`                        | `nav_msgs/Path`               | planning      | viz, recording      | 1 Hz     |
 | `/cmd_vel`                     | `geometry_msgs/Twist`         | planning      | locomotion          | 20–50 Hz |
