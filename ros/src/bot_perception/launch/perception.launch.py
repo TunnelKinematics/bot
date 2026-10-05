@@ -81,7 +81,8 @@ def generate_launch_description():
             "mode": "static",
             "num_cameras": "1",
             "lidar": "False",
-            "run_standalone": "True",
+            "container_name": "cuvslam_container",
+            "run_standalone": "False",
         }.items(),
     )
 
