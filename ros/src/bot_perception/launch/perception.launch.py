@@ -54,7 +54,6 @@ def generate_launch_description():
             ),
             ("/visual_slam/imu", "/zed/zed_node/imu/data_raw"),
         ],
-        extra_arguments=[{"use_intra_process_comms": True}],
     )
     cuvslam_container = ComposableNodeContainer(
         package="rclcpp_components",

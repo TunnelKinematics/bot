@@ -66,5 +66,7 @@ RUN rm -f /etc/apt/sources.list.d/yarn.list \
         ros-humble-gxf-isaac-optimizer \
     && rm -rf /var/lib/apt/lists/*
 
+ENV LD_LIBRARY_PATH="/opt/ros/humble/share/gxf_isaac_optimizer/gxf/lib:${LD_LIBRARY_PATH}"
+
 WORKDIR /workspace
 CMD ["/workspace/scripts/run_live.sh"]
