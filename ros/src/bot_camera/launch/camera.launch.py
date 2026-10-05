@@ -54,12 +54,7 @@ def generate_launch_description():
                 # publish_left_right.
                 'video.publish_left_right': True,
                 'video.publish_gray': True,
-                # Stabilization would start the ZED positional tracker.
-                'depth.depth_stabilization': 0,
                 'depth.publish_point_cloud': False,
-                'pos_tracking.pos_tracking_enabled': False,
-                'pos_tracking.publish_tf': False,
-                'pos_tracking.publish_map_tf': False,
             },
         ],
     )

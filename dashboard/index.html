@@ -461,10 +461,10 @@
 
     new ROSLIB.Topic({
       ros,
-      name: "/visual_slam/tracking/vo_pose",
-      messageType: "geometry_msgs/PoseStamped",
+      name: "/zed/zed_node/odom",
+      messageType: "nav_msgs/Odometry",
       throttle_rate: 50,
-    }).subscribe(({pose: {position, orientation}}) => {
+    }).subscribe(({pose: {pose: {position, orientation}}}) => {
       if (!trajectory.count) {
         controls.target.set(position.x, position.y, position.z);
         camera.position.set(

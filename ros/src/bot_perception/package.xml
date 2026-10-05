@@ -7,7 +7,6 @@
   <maintainer email="ad158@rice.edu">ahitagnied</maintainer>
   <license>Apache-2.0</license>
 
-  <exec_depend>isaac_ros_visual_slam</exec_depend>
   <exec_depend>launch</exec_depend>
   <exec_depend>launch_ros</exec_depend>
   <exec_depend>nvblox_examples_bringup</exec_depend>

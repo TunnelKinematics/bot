@@ -8,8 +8,8 @@ real implementation) as long as it publishes and subscribes to what is listed he
 | Package          | Role                                                         |
 |------------------|--------------------------------------------------------------|
 | `bot_sim`        | MuJoCo simulation. Stands in for the robot hardware and the camera. |
-| `bot_camera`     | ZED 2i launch and the dashboard's stereo preview             |
-| `bot_perception` | Stereo SLAM (cuVSLAM) and mapping (nvblox)                   |
+| `bot_camera`     | ZED 2i (images, depth, positional tracking) and stereo preview |
+| `bot_perception` | Mapping (nvblox) from ZED depth and pose                     |
 | `bot_planning`   | Global path and local control → `/cmd_vel`                   |
 | `bot_locomotion` | `/cmd_vel` → joint commands (the gait controller)            |
 | `bot_bringup`    | Launch files and config. `sim:=true\|false` picks sim or real. |
@@ -19,7 +19,7 @@ Robot-specific packages (for example `solo12_description`) live on branches.
 ## Data flow
 
 ```
-              /zed/zed_node/*         SLAM + nvblox
+              /zed/zed_node/*          nvblox map
  sim|camera ─────────────► perception ────────────► planning
     ▲                                                  │
     │ /joint_commands                                  │ /cmd_vel
@@ -37,8 +37,8 @@ map ──► odom ──► base_link ──► camera_link ──► camera_{l
 
 | Transform                   | Published by                                        |
 |-----------------------------|-----------------------------------------------------|
-| `map → odom`                | perception (SLAM loop-closure correction). In the stub, identity. |
-| `odom → base_link`          | perception (visual odometry). In the stub, sim ground truth. |
+| `map → odom`                | camera (ZED loop-closure correction). In the stub, identity. |
+| `odom → base_link`          | camera (ZED visual-inertial odometry). In the stub, sim ground truth. |
 | `base_link → camera_link`   | static, from URDF                                   |
 | `base_link → leg links`     | `robot_state_publisher`                             |
 
@@ -55,13 +55,11 @@ Conventions follow REP 103 and REP 105:
 | `/joint_states`                | `sensor_msgs/JointState`      | sim / hw      | locomotion, `robot_state_publisher` | 500 Hz+ |
 | `/zed/zed_node/imu/data`       | `sensor_msgs/Imu`             | sim / camera  | locomotion          | 100 Hz   |
 | `/joint_commands`              | `sensor_msgs/JointState` ¹    | locomotion    | sim / hw            | 500 Hz+  |
-| `/zed/zed_node/left/gray/rect/image` | `sensor_msgs/Image`     | camera        | cuVSLAM, stereo preview | 30 Hz |
-| `/zed/zed_node/right/gray/rect/image` | `sensor_msgs/Image`    | camera        | cuVSLAM, stereo preview | 30 Hz |
+| `/zed/zed_node/left/gray/rect/image` | `sensor_msgs/Image`     | camera        | stereo preview     | 30 Hz    |
+| `/zed/zed_node/right/gray/rect/image` | `sensor_msgs/Image`    | camera        | stereo preview     | 30 Hz    |
 | `/zed/stereo_preview`          | `sensor_msgs/Image` (`mono8`, left \| right) | stereo preview | dashboard | 15 Hz |
 | `/zed/zed_node/depth/depth_registered` | `sensor_msgs/Image` (`32FC1`, meters) | camera | nvblox | 30 Hz |
-| `/zed/zed_node/{left,right}/gray/rect/camera_info` | `sensor_msgs/CameraInfo` | camera | cuVSLAM | 30 Hz |
-| `/visual_slam/tracking/odometry` | `nav_msgs/Odometry`        | cuVSLAM       | planning           | 30 Hz    |
-| `/visual_slam/tracking/vo_pose` | `geometry_msgs/PoseStamped` | cuVSLAM       | dashboard          | 30 Hz    |
+| `/zed/zed_node/odom`           | `nav_msgs/Odometry`           | camera        | planning, dashboard | 30 Hz   |
 | `/nvblox_node/mesh`            | `nvblox_msgs/Mesh`            | nvblox        | visualization      | updates  |
 | `/nvblox_node/color_layer`     | `nvblox_msgs/VoxelBlockLayer` | nvblox        | dashboard          | changed blocks |
 | `/nvblox_node/color_layer_marker` | `visualization_msgs/Marker` | nvblox      | dashboard (initial snapshot) | 5 Hz |
@@ -89,6 +87,6 @@ this topic moves to a custom `bot_msgs/JointCommand`.
 
 Run `./scripts/start_live.sh` on the Jetson. The first run builds the pinned
 Isaac ROS 3.2, ROS 2 Humble, and ZED 5.3.1 image for JetPack 6. It then starts
-the ZED 2i, GPU-accelerated cuVSLAM and nvblox, browser bridges, and dashboard,
+the ZED 2i with its positional tracking, GPU nvblox, browser bridges, and dashboard,
 and prints a Tailscale URL such as `http://100.x.y.z:8080`. Later runs reuse
 the image. Re-run `./scripts/build_jetson.sh` after changing the Dockerfile.

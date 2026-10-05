@@ -7,43 +7,6 @@ from launch_ros.substitutions import FindPackageShare
 
 
 def generate_launch_description():
-    cuvslam = ComposableNode(
-        package="isaac_ros_visual_slam",
-        plugin="nvidia::isaac_ros::visual_slam::VisualSlamNode",
-        name="visual_slam_node",
-        parameters=[
-            {
-                "rectified_images": True,
-                "enable_image_denoising": False,
-                "camera_optical_frames": [
-                    "zed_left_camera_frame_optical",
-                    "zed_right_camera_frame_optical",
-                ],
-                "base_frame": "zed_camera_link",
-                "num_cameras": 2,
-                "image_jitter_threshold_ms": 35.0,
-            }
-        ],
-        remappings=[
-            (
-                "/visual_slam/image_0",
-                "/zed/zed_node/left/gray/rect/image",
-            ),
-            (
-                "/visual_slam/camera_info_0",
-                "/zed/zed_node/left/gray/rect/camera_info",
-            ),
-            (
-                "/visual_slam/image_1",
-                "/zed/zed_node/right/gray/rect/image",
-            ),
-            (
-                "/visual_slam/camera_info_1",
-                "/zed/zed_node/right/gray/rect/camera_info",
-            ),
-        ],
-    )
-
     nvblox_config = PathJoinSubstitution(
         [FindPackageShare("nvblox_examples_bringup"), "config", "nvblox"]
     )
@@ -79,7 +42,7 @@ def generate_launch_description():
         name=LaunchConfiguration("container_name"),
         namespace="",
         output="screen",
-        composable_node_descriptions=[cuvslam, nvblox],
+        composable_node_descriptions=[nvblox],
     )
     return LaunchDescription(
         [
