@@ -44,6 +44,14 @@ RUN git clone --depth 1 --branch "${ZED_WRAPPER_VERSION}" --recurse-submodules \
         --ignore-src \
         --rosdistro humble \
         -r -y \
+    && NUMPY_INCLUDE="$(python3 -c 'import numpy; print(numpy.get_include())')" \
+    && EXPECTED="/usr/local/lib/python3.10/dist-packages/numpy/core/include" \
+    && if [[ "$NUMPY_INCLUDE" != "$EXPECTED" ]]; then \
+         rm -rf "$EXPECTED"; \
+         mkdir -p "$(dirname "$EXPECTED")"; \
+         ln -s "$NUMPY_INCLUDE" "$EXPECTED"; \
+       fi \
+    && test -d "$EXPECTED" \
     && cd /opt/zed_ws \
     && colcon build \
         --merge-install \
