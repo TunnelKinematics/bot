@@ -3,7 +3,6 @@ FROM ros:jazzy-ros-base-noble@sha256:8eed0a4669bbf43ee331878a4c39bd8ebddea8e3312
 RUN apt-get update && apt-get install -y --no-install-recommends \
         libpcl-dev \
         ros-jazzy-pcl-conversions \
-        ros-jazzy-rviz2 \
     && rm -rf /var/lib/apt/lists/*
 
 ARG LIDAR_MODEL=l2
@@ -21,6 +20,10 @@ RUN case "$LIDAR_MODEL" in \
         --base-paths /tmp/sdk/unitree_lidar_ros2 --build-base /tmp/build --install-base /opt/unilidar \
         --cmake-args -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_STANDARD=17 \
     && rm -rf /tmp/sdk /tmp/build
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        ros-jazzy-foxglove-bridge \
+    && rm -rf /var/lib/apt/lists/*
 
 ENV LIDAR_MODEL=$LIDAR_MODEL
 COPY entrypoint.sh /entrypoint.sh

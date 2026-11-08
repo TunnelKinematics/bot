@@ -1,8 +1,10 @@
 # Interfaces
 
 `bot_bringup/launch/lidar.launch.py` runs the Unitree driver (`unitree_lidar_ros2`, built into the
-image from a pinned commit) and the static transforms below. Later stacks (for example
-`slam.launch.py`) go next to it and consume these topics and frames.
+image from a pinned commit) and the static transforms below. `robot.launch.py` is the top-level bringup
+the container runs: it includes `lidar.launch.py` (same `model` and `mount` args) and, unless
+`foxglove:=false`, starts `foxglove_bridge` on port 8765 serving `/lidar/points`, `/lidar/imu`, `/tf` and
+`/tf_static`. Later stacks (for example `slam.launch.py`) are included there.
 
 ## Topics
 
@@ -49,7 +51,9 @@ zcat /proc/config.gz | grep CONFIG_USB_ACM=   # must be y or m, otherwise no /de
 ls -l /dev/unitree_lidar                       # with the lidar plugged in and powered
 docker compose -f ros/docker/compose.yml up --build -d
 docker compose -f ros/docker/compose.yml restart   # if the lidar was plugged in after start; the driver never reopens the port
-ros/lidar_view.sh            # works over SSH: one sample from each topic, then live rates
-xhost +local:                # run in a terminal on the Jetson desktop, once per login
-ros/lidar_view.sh --rviz     # opens RViz2 on the attached monitor (:0)
+sudo tailscale serve --bg 8765   # once, persists across reboots; needs HTTPS certificates enabled in the Tailscale admin DNS settings
+ros/lidar_view.sh                # prints the Foxglove URL, one sample from each topic, then live rates
 ```
+
+Foxglove (app.foxglove.dev, on a machine in the tailnet): Connect to a robot → Foxglove WebSocket →
+`wss://<jetson>.<tailnet>.ts.net`, then add a 3D panel with display frame `base_link` and topic `/lidar/points`.

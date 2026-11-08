@@ -2,18 +2,19 @@
 set -euo pipefail
 topics=(/lidar/points /lidar/imu)
 
-if ! command -v ros2 >/dev/null; then
-  exec docker exec -i $([ -t 0 ] && echo -t) bot /entrypoint.sh bash -c "$(<"$0")" "$0" "$@"
-fi
+foxglove_url() {
+  local name
+  name=$(tailscale status --json 2>/dev/null \
+    | python3 -c 'import json, sys; print(json.load(sys.stdin)["Self"]["DNSName"].rstrip("."))' 2>/dev/null) \
+    && [ -n "$name" ] && { echo "wss://$name"; return; }
+  echo "ws://$(tailscale ip -4 2>/dev/null || hostname -I 2>/dev/null | awk '{print $1}'):8765"
+}
 
-case "${1:-}" in
-  "") ;;
-  --rviz)
-    rviz=$(ros2 pkg prefix --share bot_bringup 2>/dev/null)/rviz/lidar.rviz
-    [ -f "$rviz" ] || rviz=$(dirname "$0")/src/bot_bringup/rviz/lidar.rviz
-    exec rviz2 -d "$rviz" ;;
-  *) echo "usage: $0 [--rviz]" >&2; exit 2 ;;
-esac
+[ -f /.dockerenv ] || echo "Foxglove: $(foxglove_url)"
+
+if ! command -v ros2 >/dev/null; then
+  exec docker exec "-i$([ -t 0 ] && echo t)" bot /entrypoint.sh bash -c "$(<"$0")" "$0" "$@"
+fi
 
 for topic in "${topics[@]}"; do
   echo "--- $topic"

@@ -12,13 +12,11 @@ services:
     network_mode: host
     ipc: host
     environment:
-      - DISPLAY=${DISPLAY:-:0}
       - ROS_DOMAIN_ID=${ROS_DOMAIN_ID:-0}
     volumes:
       - ../src:/ws/src:ro
       - /dev:/dev
-      - /tmp/.X11-unix:/tmp/.X11-unix:ro
     device_cgroup_rules:
       - "c 166:* rmw" # ttyACM
       - "c 188:* rmw" # ttyUSB
-    command: bash -c "colcon build --symlink-install && . install/setup.bash && exec ros2 launch bot_bringup lidar.launch.py"
+    command: bash -c "colcon build --symlink-install && . install/setup.bash && exec ros2 launch bot_bringup robot.launch.py"
