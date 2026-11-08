@@ -1,0 +1,11 @@
+/**:
+  ros__parameters:
+    initialize_type: 1
+    # Sent to the lidar on every start: 8 keeps it in serial mode, 0 would switch it to Ethernet.
+    work_mode: 8
+    serial_port: /dev/unitree_lidar
+    baudrate: 4000000
+    use_system_timestamp: true
+    range_min: 0.0
+    range_max: 100.0
+    cloud_scan_num: 18

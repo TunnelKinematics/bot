@@ -1,37 +1,30 @@
-# Base is multi-arch: arm64 on Apple Silicon / Jetson, amd64 on x86 hosts.
-FROM ros:jazzy
+FROM ros:jazzy-ros-base-noble@sha256:8eed0a4669bbf43ee331878a4c39bd8ebddea8e3312a58b4fae8edb14526b617
 
-ARG USERNAME=ros
-ARG USER_UID=1000
-ARG USER_GID=1000
-
-ENV DEBIAN_FRONTEND=noninteractive
-
-# EGL + Mesa: headless MuJoCo rendering (MUJOCO_GL=egl) for recording videos.
 RUN apt-get update && apt-get install -y --no-install-recommends \
-        python3-pip \
-        python3-colcon-common-extensions \
-        ros-jazzy-foxglove-bridge \
-        ros-jazzy-rosbag2-storage-mcap \
-        ros-jazzy-xacro \
-        ros-jazzy-robot-state-publisher \
-        libegl1 libegl-mesa0 libgl1 libopengl0 libgl1-mesa-dri \
+        libpcl-dev \
+        ros-jazzy-pcl-conversions \
+        ros-jazzy-rviz2 \
     && rm -rf /var/lib/apt/lists/*
 
-# Ubuntu 24.04 marks system Python as externally managed (PEP 668).
-RUN pip3 install --no-cache-dir --break-system-packages mujoco
+ARG LIDAR_MODEL=l2
+# The driver's CMakeLists finds the prebuilt SDK by a path relative to the repo root.
+RUN case "$LIDAR_MODEL" in \
+        l2) repo=unilidar_sdk2 rev=0e3c51f512e6b8ff60b8c32f160b412cb48445c2 ;; \
+        l1) repo=unilidar_sdk rev=1bd7d95d8ab7ce7a22058d2bb07e39fd62612aa6 ;; \
+        *) echo "LIDAR_MODEL must be l1 or l2" >&2; exit 1 ;; \
+    esac \
+    && git init -q /tmp/sdk \
+    && git -C /tmp/sdk fetch -q --depth 1 "https://github.com/unitreerobotics/$repo" "$rev" \
+    && git -C /tmp/sdk checkout -q FETCH_HEAD \
+    && . /opt/ros/jazzy/setup.sh \
+    && colcon --log-base /dev/null build --merge-install \
+        --base-paths /tmp/sdk/unitree_lidar_ros2 --build-base /tmp/build --install-base /opt/unilidar \
+        --cmake-args -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_STANDARD=17 \
+    && rm -rf /tmp/sdk /tmp/build
 
-# Non-root user; the base image's 'ubuntu' user holds UID 1000, so drop it first.
-# -o allows reusing an existing GID.
-RUN userdel -r ubuntu \
-    && groupadd -o -g ${USER_GID} ${USERNAME} \
-    && useradd -o -m -s /bin/bash -u ${USER_UID} -g ${USER_GID} ${USERNAME} \
-    && mkdir -p /ws/src /ws/build /ws/install /ws/log \
-    && chown -R ${USER_UID}:${USER_GID} /ws
-
-RUN echo 'source /opt/ros/jazzy/setup.bash' >> /home/${USERNAME}/.bashrc \
-    && echo '[ -f /ws/install/setup.bash ] && source /ws/install/setup.bash' >> /home/${USERNAME}/.bashrc
-
-USER ${USERNAME}
+ENV LIDAR_MODEL=$LIDAR_MODEL
+COPY entrypoint.sh /entrypoint.sh
+RUN echo '. /entrypoint.sh' >> /root/.bashrc
 WORKDIR /ws
+ENTRYPOINT ["/entrypoint.sh"]
 CMD ["bash"]

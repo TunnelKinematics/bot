@@ -1,80 +1,55 @@
 # Interfaces
 
-These are the contracts between nodes. A node can be replaced (sim ↔ real, stub ↔
-real implementation) as long as it publishes and subscribes to what is listed here.
-
-## Packages
-
-| Package          | Role                                                         |
-|------------------|--------------------------------------------------------------|
-| `bot_sim`        | MuJoCo simulation. Stands in for the robot hardware and the camera. |
-| `bot_perception` | Stereo SLAM (cuVSLAM) and mapping (nvblox)                   |
-| `bot_planning`   | Global path and local control → `/cmd_vel`                   |
-| `bot_locomotion` | `/cmd_vel` → joint commands (the gait controller)            |
-| `bot_bringup`    | Launch files and config. `sim:=true\|false` picks sim or real. |
-
-Robot-specific packages (for example `solo12_description`) live on branches.
-
-## Data flow
-
-```
-             /camera/*                /odom, /map
- sim|real ──────────────► perception ────────────► planning
-    ▲                                                  │
-    │ /joint_commands                                  │ /cmd_vel
-    │                                                  ▼
-    └──────────────────── locomotion ◄─────────────────┘
-          /joint_states, /imu ──►
-```
-
-## TF tree
-
-```
-map ──► odom ──► base_link ──► camera_link ──► camera_{left,right}_optical_frame
-                     └──► <leg links>   (robot_state_publisher, from /joint_states)
-```
-
-| Transform                   | Published by                                        |
-|-----------------------------|-----------------------------------------------------|
-| `map → odom`                | perception (SLAM loop-closure correction). In the stub, identity. |
-| `odom → base_link`          | perception (visual odometry). In the stub, sim ground truth. |
-| `base_link → camera_link`   | static, from URDF                                   |
-| `base_link → leg links`     | `robot_state_publisher`                             |
-
-Conventions follow REP 103 and REP 105:
-- Body frames are x forward, y left, z up.
-- Optical frames are z forward, x right, y down.
-- Units are SI (m, rad, s).
+`bot_bringup/launch/lidar.launch.py` runs the Unitree driver (`unitree_lidar_ros2`, built into the
+image from a pinned commit) and the static transforms below. Later stacks (for example
+`slam.launch.py`) go next to it and consume these topics and frames.
 
 ## Topics
 
-| Topic                          | Type                          | Publisher     | Subscribers         | Rate     |
-|--------------------------------|-------------------------------|---------------|---------------------|----------|
-| `/clock`                       | `rosgraph_msgs/Clock`         | sim           | all (sim only)      | sim step |
-| `/joint_states`                | `sensor_msgs/JointState`      | sim / hw      | locomotion, `robot_state_publisher` | 500 Hz+ |
-| `/imu`                         | `sensor_msgs/Imu`             | sim / hw      | locomotion, perception | 500 Hz+ |
-| `/joint_commands`              | `sensor_msgs/JointState` ¹    | locomotion    | sim / hw            | 500 Hz+  |
-| `/camera/left/image_raw`       | `sensor_msgs/Image`           | sim / camera  | perception          | 30 Hz    |
-| `/camera/right/image_raw`      | `sensor_msgs/Image`           | sim / camera  | perception          | 30 Hz    |
-| `/camera/{left,right}/camera_info` | `sensor_msgs/CameraInfo`  | sim / camera  | perception          | 30 Hz    |
-| `/odom`                        | `nav_msgs/Odometry`           | perception    | planning            | 30 Hz    |
-| `/map`                         | `nav_msgs/OccupancyGrid`      | perception    | planning            | 1–5 Hz   |
-| `/goal_pose`                   | `geometry_msgs/PoseStamped`   | user / Foxglove | planning          | on demand |
-| `/plan`                        | `nav_msgs/Path`               | planning      | viz, recording      | 1 Hz     |
-| `/cmd_vel`                     | `geometry_msgs/Twist`         | planning      | locomotion          | 20–50 Hz |
+| Topic           | Type                       | Rate          |
+|-----------------|----------------------------|---------------|
+| `/lidar/points` | `sensor_msgs/PointCloud2`  | ~10 Hz        |
+| `/lidar/imu`    | `sensor_msgs/Imu`          | ~200 Hz (L2)  |
 
-¹ `/joint_commands` reuses the `JointState` fields: `position` is the target angle (q_des),
-`velocity` is the target velocity (dq_des), and `effort` is the feed-forward torque (tau_ff).
-The PD gains kp and kd are parameters for now. If per-joint gains per message are needed,
-this topic moves to a custom `bot_msgs/JointCommand`.
+The fields are `x y z intensity ring time`. The driver's own TF (IMU attitude) is remapped to `/lidar/tf`
+and is not part of the tree.
 
-`/cmd_vel` is interpreted in `base_link`: `linear.x` and `linear.y` are the body velocity and
-`angular.z` is the yaw rate. Other fields are ignored.
+## Frames
 
-## Sim vs real
+```
+base_link ──► lidar_link ──► lidar_imu_link
+```
 
-- With `sim:=true`, every node sets `use_sim_time:=true` and `bot_sim` publishes `/clock`.
-- `bot_sim` loads its model from the `model_path` parameter (MJCF or URDF), so it has no
-  robot-specific code.
-- The real-hardware node (later, on the Jetson) must publish and subscribe to exactly the
-  same topics as `bot_sim`.
+| Transform                     | Source                                                  |
+|-------------------------------|---------------------------------------------------------|
+| `base_link → lidar_link`      | launch arg `mount:="x y z roll pitch yaw"`, zero by default. A URDF replaces this later. |
+| `lidar_link → lidar_imu_link` | Factory offset (-0.007698, -0.014655, 0.00667) m        |
+
+REP 103/105: x forward, y left, z up, SI units.
+
+## Parameters
+
+| Setting           | Where                                     |
+|-------------------|-------------------------------------------|
+| Lidar model       | `LIDAR_MODEL=l2\|l1`: a Docker build arg, also the default of the launch arg `model` |
+| Driver parameters | `bot_bringup/config/lidar_<model>.yaml`   |
+| Topic/frame names | `lidar.launch.py` (`TOPICS`, `FRAMES`)    |
+
+L2: USB serial at 4000000 baud on `/dev/unitree_lidar` (from `udev/99-unitree-lidar.rules`, CH343 `1a86:55d3`).
+The lidar must already be in serial mode (`work_mode` 8). From the factory it ships in Ethernet mode,
+and switching it needs an Ethernet connection once (Unilidar 2 or the SDK's `set_to_serial_mode`).
+L1: `/dev/ttyUSB0`.
+
+## Jetson runbook
+
+```
+cd ~/bot && git pull
+sudo cp ros/udev/99-unitree-lidar.rules /etc/udev/rules.d/ && sudo udevadm control --reload-rules && sudo udevadm trigger
+zcat /proc/config.gz | grep CONFIG_USB_ACM=   # must be y or m, otherwise no /dev/ttyACM*
+ls -l /dev/unitree_lidar                       # with the lidar plugged in and powered
+docker compose -f ros/docker/compose.yml up --build -d
+docker compose -f ros/docker/compose.yml restart   # if the lidar was plugged in after start; the driver never reopens the port
+ros/lidar_view.sh            # works over SSH: one sample from each topic, then live rates
+xhost +local:                # run in a terminal on the Jetson desktop, once per login
+ros/lidar_view.sh --rviz     # opens RViz2 on the attached monitor (:0)
+```
