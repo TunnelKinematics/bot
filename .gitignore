@@ -3,3 +3,4 @@ __pycache__/
 ros/build/
 ros/install/
 ros/log/
+bags/

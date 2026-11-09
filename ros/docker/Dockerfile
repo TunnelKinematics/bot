@@ -25,6 +25,19 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         ros-jazzy-foxglove-bridge \
     && rm -rf /var/lib/apt/lists/*
 
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        python3-dev \
+        ros-jazzy-pcl-ros \
+    && rm -rf /var/lib/apt/lists/* \
+    && git init -q /tmp/slam \
+    && git -C /tmp/slam fetch -q --depth 1 https://github.com/dfloreaa/point_lio_ros2 a8e2d0d5090af97ead8dd4fac3d37cf3dbb33ff7 \
+    && git -C /tmp/slam checkout -q FETCH_HEAD \
+    && . /opt/ros/jazzy/setup.sh \
+    && colcon --log-base /dev/null build --merge-install \
+        --base-paths /tmp/slam --build-base /tmp/build --install-base /opt/slam \
+        --cmake-args -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_STANDARD=17 \
+    && rm -rf /tmp/slam /tmp/build
+
 ENV LIDAR_MODEL=$LIDAR_MODEL
 COPY entrypoint.sh /entrypoint.sh
 RUN echo '. /entrypoint.sh' >> /root/.bashrc

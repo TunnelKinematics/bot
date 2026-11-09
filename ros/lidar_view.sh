@@ -16,6 +16,7 @@ if ! command -v ros2 >/dev/null; then
   exec docker exec "-i$([ -t 0 ] && echo t)" bot /entrypoint.sh bash -c "$(<"$0")" "$0" "$@"
 fi
 
+grep -qx /slam/odom <(ros2 topic list) && topics+=(/slam/odom)
 for topic in "${topics[@]}"; do
   echo "--- $topic"
   timeout 5 ros2 topic echo --once --no-arr "$topic" || echo "no message on $topic within 5 s" >&2

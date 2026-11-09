@@ -9,14 +9,16 @@ LAUNCH = get_package_share_path('bot_bringup') / 'launch'
 FOXGLOVE = {
     'port': 8765,
     'address': '0.0.0.0',
-    'topic_whitelist': ['^/lidar/(points|imu)$', '^/tf(_static)?$'],
+    'topic_whitelist': ['^/lidar/(points|imu)$', '^/slam/(odom|map|path|cloud)$', '^/tf(_static)?$'],
 }
 
 
 def generate_launch_description():
     return LaunchDescription([
         DeclareLaunchArgument('foxglove', default_value='true', choices=['true', 'false']),
+        DeclareLaunchArgument('slam', default_value='true', choices=['true', 'false']),
         IncludeLaunchDescription(str(LAUNCH / 'lidar.launch.py')),
+        IncludeLaunchDescription(str(LAUNCH / 'slam.launch.py'), condition=IfCondition(LaunchConfiguration('slam'))),
         Node(
             package='foxglove_bridge', executable='foxglove_bridge', name='foxglove_bridge',
             output='screen', parameters=[FOXGLOVE], condition=IfCondition(LaunchConfiguration('foxglove'))),
