@@ -1,6 +1,0 @@
-/**:
-  ros__parameters:
-    port: /dev/ttyUSB0
-    range_min: 0.0
-    range_max: 50.0
-    cloud_scan_num: 18

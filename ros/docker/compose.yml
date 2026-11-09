@@ -3,11 +3,8 @@ name: bot
 services:
   bot:
     container_name: bot
-    build:
-      context: .
-      args:
-        LIDAR_MODEL: ${LIDAR_MODEL:-l2}
-    image: bot:${LIDAR_MODEL:-l2}
+    build: .
+    image: bot
     runtime: runc
     network_mode: host
     ipc: host

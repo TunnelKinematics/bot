@@ -1,0 +1,25 @@
+<?xml version="1.0"?>
+<robot name="bot" xmlns:xacro="http://www.ros.org/wiki/xacro">
+  <xacro:arg name="x" default="0"/>
+  <xacro:arg name="y" default="0"/>
+  <xacro:arg name="z" default="0"/>
+  <xacro:arg name="roll" default="0"/>
+  <xacro:arg name="pitch" default="0"/>
+  <xacro:arg name="yaw" default="0"/>
+
+  <link name="base_link"/>
+  <link name="lidar_link"/>
+  <link name="lidar_imu_link"/>
+
+  <joint name="lidar_joint" type="fixed">
+    <parent link="base_link"/>
+    <child link="lidar_link"/>
+    <origin xyz="$(arg x) $(arg y) $(arg z)" rpy="$(arg roll) $(arg pitch) $(arg yaw)"/>
+  </joint>
+
+  <joint name="lidar_imu_joint" type="fixed">
+    <parent link="lidar_link"/>
+    <child link="lidar_imu_link"/>
+    <origin xyz="-0.007698 -0.014655 0.00667"/>
+  </joint>
+</robot>

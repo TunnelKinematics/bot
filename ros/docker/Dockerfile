@@ -5,15 +5,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         ros-jazzy-pcl-conversions \
     && rm -rf /var/lib/apt/lists/*
 
-ARG LIDAR_MODEL=l2
 # The driver's CMakeLists finds the prebuilt SDK by a path relative to the repo root.
-RUN case "$LIDAR_MODEL" in \
-        l2) repo=unilidar_sdk2 rev=0e3c51f512e6b8ff60b8c32f160b412cb48445c2 ;; \
-        l1) repo=unilidar_sdk rev=1bd7d95d8ab7ce7a22058d2bb07e39fd62612aa6 ;; \
-        *) echo "LIDAR_MODEL must be l1 or l2" >&2; exit 1 ;; \
-    esac \
-    && git init -q /tmp/sdk \
-    && git -C /tmp/sdk fetch -q --depth 1 "https://github.com/unitreerobotics/$repo" "$rev" \
+RUN git init -q /tmp/sdk \
+    && git -C /tmp/sdk fetch -q --depth 1 https://github.com/unitreerobotics/unilidar_sdk2 0e3c51f512e6b8ff60b8c32f160b412cb48445c2 \
     && git -C /tmp/sdk checkout -q FETCH_HEAD \
     && . /opt/ros/jazzy/setup.sh \
     && colcon --log-base /dev/null build --merge-install \
@@ -38,7 +32,11 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         --cmake-args -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_STANDARD=17 \
     && rm -rf /tmp/slam /tmp/build
 
-ENV LIDAR_MODEL=$LIDAR_MODEL
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        ros-jazzy-robot-state-publisher \
+        ros-jazzy-xacro \
+    && rm -rf /var/lib/apt/lists/*
+
 COPY entrypoint.sh /entrypoint.sh
 RUN echo '. /entrypoint.sh' >> /root/.bashrc
 WORKDIR /ws
